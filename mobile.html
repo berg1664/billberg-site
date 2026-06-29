@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BILL BERG — Reel (mobile)</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <style>
   :root {
     --bg: #FCFAF5; --ink: #000; --accent: #000; --pop: #CC0000;
@@ -132,24 +133,49 @@
   }
 
   /* ---------- full-bleed reel player ---------- */
-  #sheet { position: fixed; inset: 0; background: #000; z-index: 100; display: none; }
+  #sheet { position: fixed; inset: 0; background: #000; z-index: 100; display: none; overscroll-behavior: none; }
   #sheet.show { display: block; }
-  #sheet .frame { position: absolute; inset: 0; width: 100%; height: 100%; display: grid; place-items: center; overflow: hidden; }
-  #sheet .frame iframe { width: 100%; height: 100%; border: 0; }
-  #sheet .frame .phlabel { color: rgba(255,255,255,.9); font-family: "Courier New", monospace; font-size: 12px; text-align: center; line-height: 1.9; text-shadow: 0 1px 4px rgba(0,0,0,.6); padding: 0 24px; }
+  #sheet .deck { position: absolute; inset: 0; overflow: hidden; }
+  #sheet .slide {
+    position: absolute; left: 0; right: 0; top: 0; height: 100%;
+    display: grid; place-items: center; background: #000;
+    will-change: transform;
+  }
+  #sheet .slide video {
+    width: 100%; height: 100%; object-fit: contain; background: transparent; position: relative; z-index: 1;
+  }
+  #sheet .slide .poster {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    filter: blur(18px) brightness(.5); transform: scale(1.1);
+  }
+  #sheet .slide .spin {
+    position: absolute; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; opacity: 0; transition: opacity .2s;
+  }
+  #sheet .slide.loading .spin { opacity: 1; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #sheet .slide .paused {
+    position: absolute; width: 0; height: 0; opacity: 0; transition: opacity .15s;
+    border-left: 26px solid rgba(255,255,255,.92); border-top: 16px solid transparent; border-bottom: 16px solid transparent;
+    filter: drop-shadow(0 1px 6px rgba(0,0,0,.6)); pointer-events: none;
+  }
+  #sheet .slide.ispaused .paused { opacity: 1; }
   #sheet .scrim {
-    position: absolute; left: 0; right: 0; top: 0;
+    position: absolute; left: 0; right: 0; top: 0; z-index: 3;
     padding: calc(16px + env(safe-area-inset-top,0)) 16px 48px;
     background: linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,0)); pointer-events: none;
   }
-  #sheet .sinfo { font-family: "Courier New", monospace; font-size: 12px; color: #fff; line-height: 1.5; max-width: 88%; text-transform: uppercase; font-weight: bold; }
+  #sheet .sinfo { font-family: "Courier New", monospace; font-size: 12px; color: #fff; line-height: 1.5; max-width: 80%; text-transform: uppercase; font-weight: bold; }
   #sheet .sinfo .dt { display: block; opacity: .8; font-weight: normal; margin-top: 2px; }
-  #sheet .close {
-    position: absolute; z-index: 3; bottom: calc(18px + env(safe-area-inset-bottom,0)); right: 14px;
-    width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.4);
-    border: 1px solid rgba(255,255,255,.55); color: #fff; font-family: "Courier New", monospace;
-    font-size: 15px; line-height: 1; cursor: pointer; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  #sheet .pbtn {
+    position: absolute; z-index: 4; width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.55); color: #fff;
+    font-family: "Courier New", monospace; font-size: 15px; line-height: 1; cursor: pointer;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    display: grid; place-items: center;
   }
+  #sheet .close { top: calc(14px + env(safe-area-inset-top,0)); right: 14px; }
+  #sheet .mute  { bottom: calc(18px + env(safe-area-inset-bottom,0)); right: 14px; }
   #sheet .swipehint {
     position: absolute; left: 0; right: 0; z-index: 3; bottom: calc(86px + env(safe-area-inset-bottom,0));
     text-align: center; font-family: "Courier New", monospace; font-size: 11px; color: #fff;
@@ -220,12 +246,13 @@
   <div class="glist" id="glist"></div>
 </div>
 
-<!-- full-bleed player -->
+<!-- full-bleed reel player (native video, preloaded neighbors) -->
 <div id="sheet">
-  <div class="frame" id="sheetFrame"></div>
+  <div class="deck" id="deck"></div>
   <div class="scrim"><div class="sinfo" id="sheetInfo"></div></div>
-  <div class="swipehint">↑ swipe to keep watching</div>
-  <button class="close" id="sheetClose">✕</button>
+  <div class="swipehint">↑ swipe for next</div>
+  <button class="pbtn mute" id="muteBtn" title="sound">♪</button>
+  <button class="pbtn close" id="sheetClose" title="close">✕</button>
 </div>
 
 <script>
@@ -302,6 +329,8 @@ CLIENTS.forEach((cl, ci) => cl.pieces.forEach((p, pi) => FEED.push({ ci, pi, cl,
 const BUNNY_PULL = "https://vz-ea36faae-e94.b-cdn.net";
 function bunnyId(u) { return u ? u.split("?")[0].split("/").pop() : ""; }
 function previewURL(u) { const id = bunnyId(u); return id ? `${BUNNY_PULL}/${id}/preview.webp` : ""; }
+function posterURL(u)  { const id = bunnyId(u); return id ? `${BUNNY_PULL}/${id}/thumbnail.jpg` : ""; }
+function hlsURL(u)     { const id = bunnyId(u); return id ? `${BUNNY_PULL}/${id}/playlist.m3u8` : ""; }
 function credit(p) { return [p.dir, p.co].filter(Boolean).join(" / "); }
 
 CLIENTS.forEach((cl, ci) => {
@@ -351,80 +380,180 @@ document.getElementById("gcloseBtn").addEventListener("click", () => {
   document.body.style.overflow = "";
 });
 
-/* ---------- full-bleed player + continuous swipe ---------- */
+/* ---------- full-bleed player: native video, neighbours preloaded ---------- */
 const sheet = document.getElementById("sheet");
-let feedPos = 0, swipeHinted = false;
+const deck = document.getElementById("deck");
+const muteBtn = document.getElementById("muteBtn");
+let feedPos = 0, swipeHinted = false, globalMuted = false, animating = false;
+let sPrev = null, sCur = null, sNext = null;
 
-function feedIndexOf(ci, pi) {
-  return FEED.findIndex(f => f.ci === ci && f.pi === pi);
+function feedIndexOf(ci, pi) { return FEED.findIndex(f => f.ci === ci && f.pi === pi); }
+function wrap(i) { return (i % FEED.length + FEED.length) % FEED.length; }
+
+function buildSlide(idx, rel) {
+  idx = wrap(idx);
+  const item = FEED[idx];
+  const src = item.p.vertical || item.p.horizontal;
+  const hls = hlsURL(src);
+  const poster = previewURL(src) || posterURL(src);
+
+  const slide = document.createElement("div");
+  slide.className = "slide loading";
+  slide.style.transform = `translateY(${rel * 100}%)`;
+  slide.innerHTML = `<div class="poster" style="background-image:url('${poster}')"></div><div class="spin"></div><div class="paused"></div>`;
+
+  const video = document.createElement("video");
+  video.playsInline = true;
+  video.setAttribute("playsinline", ""); video.setAttribute("webkit-playsinline", "");
+  video.loop = true; video.preload = "auto"; video.muted = true;
+  video.addEventListener("loadeddata", () => slide.classList.remove("loading"));
+  video.addEventListener("playing",    () => slide.classList.remove("loading"));
+  video.addEventListener("waiting",    () => slide.classList.add("loading"));
+  slide.appendChild(video);
+  deck.appendChild(slide);
+
+  let hlsInst = null;
+  if (hls) {
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = hls;                                   // iOS / Safari: native HLS
+    } else if (window.Hls && Hls.isSupported()) {
+      hlsInst = new Hls({ maxBufferLength: 15, capLevelToPlayerSize: true });
+      hlsInst.loadSource(hls); hlsInst.attachMedia(video);   // Android / Chrome
+    } else {
+      video.src = hls;
+    }
+  }
+  return { idx, rel, slide, video, hls: hlsInst, item };
 }
 
-function loadFeed(pos) {
-  feedPos = (pos + FEED.length) % FEED.length;   // wrap → endless loop
-  const { cl, p } = FEED[feedPos];
-  const url = p.vertical || p.horizontal;
-  const vertical = !!p.vertical;
+function destroySlide(s) {
+  if (!s) return;
+  try { s.video.pause(); } catch (e) {}
+  if (s.hls) { try { s.hls.destroy(); } catch (e) {} }
+  s.video.removeAttribute("src");
+  try { s.video.load(); } catch (e) {}
+  s.slide.remove();
+}
+
+function setRel(s, rel, animate) {
+  s.rel = rel;
+  s.slide.style.transition = animate ? "transform .28s cubic-bezier(.4,0,.2,1)" : "none";
+  s.slide.style.transform = `translateY(${rel * 100}%)`;
+}
+
+function updateScrim(pos) {
+  const { cl, p } = FEED[pos];
   const cr = credit(p);
   document.getElementById("sheetInfo").innerHTML =
-    `<span>${cl.client} — ${p.name}</span>${cr ? `&nbsp; <span class="dt">${cr}</span>` : ""}`;
-  const f = document.getElementById("sheetFrame");
-  f.className = "frame " + cl.art;
-  f.innerHTML = url
-    ? `<iframe src="${url}?autoplay=true&loop=true&preload=true&responsive=true" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;fullscreen" allowfullscreen></iframe>`
-    : `<div class="phlabel">NOW PLAYING — ${p.name}<br><span style="opacity:.6">(${vertical ? "vertical" : "16:9"} embed plays full-bleed here)</span></div>`;
+    `<span>${cl.client} — ${p.name}</span>${cr ? `<span class="dt">${cr}</span>` : ""}`;
 }
 
-function openPlayer(ci, pi) {
-  loadFeed(feedIndexOf(ci, pi));
-  sheet.classList.add("show");
-  document.body.style.overflow = "hidden";
-  if (!swipeHinted) {
-    sheet.classList.add("hint"); setTimeout(() => sheet.classList.remove("hint"), 2600); swipeHinted = true;
+function playCur() {
+  [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
+  if (!sCur) return;
+  sCur.slide.classList.remove("ispaused");
+  sCur.video.muted = globalMuted;
+  const tryPlay = sCur.video.play();
+  if (tryPlay && tryPlay.catch) {
+    tryPlay.catch(() => {                 // autoplay-with-sound blocked → mute & retry
+      globalMuted = true; updateMuteBtn();
+      sCur.video.muted = true; sCur.video.play().catch(() => {});
+    });
   }
 }
+
+function updateMuteBtn() { muteBtn.textContent = globalMuted ? "🔇" : "🔊"; }
+
+function openPlayer(ci, pi) {
+  feedPos = feedIndexOf(ci, pi);
+  destroySlide(sPrev); destroySlide(sCur); destroySlide(sNext);
+  deck.innerHTML = "";
+  sCur  = buildSlide(feedPos, 0);
+  sNext = buildSlide(feedPos + 1, 1);
+  sPrev = buildSlide(feedPos - 1, -1);
+  updateScrim(feedPos);
+  updateMuteBtn();
+  sheet.classList.add("show");
+  document.body.style.overflow = "hidden";
+  playCur();
+  if (!swipeHinted) { sheet.classList.add("hint"); setTimeout(() => sheet.classList.remove("hint"), 2600); swipeHinted = true; }
+}
+
 function closeSheet() {
   sheet.classList.remove("show");
-  const f = document.getElementById("sheetFrame");
-  f.innerHTML = ""; f.className = "frame"; f.style.cssText = "";
+  destroySlide(sPrev); destroySlide(sCur); destroySlide(sNext);
+  sPrev = sCur = sNext = null;
+  deck.innerHTML = "";
   if (!gsheet.classList.contains("show")) document.body.style.overflow = "";
 }
 document.getElementById("sheetClose").addEventListener("click", closeSheet);
 
-/* swipe up/down moves through the ENTIRE feed, looping endlessly */
-let animating = false;
+/* swipe up = next, down = prev — endless loop, neighbours already buffered */
 function slideTo(dir) {
   if (animating || FEED.length < 2) return;
   animating = true;
-  const f = document.getElementById("sheetFrame");
-  f.style.transition = "transform .2s ease, opacity .2s ease";
-  f.style.transform = `translateY(${dir > 0 ? "-9%" : "9%"})`;
-  f.style.opacity = "0";
+  [sPrev, sCur, sNext].forEach(s => { if (s) setRel(s, s.rel - dir, true); });
   setTimeout(() => {
-    loadFeed(feedPos + dir);
-    f.style.transition = "none";
-    f.style.transform = `translateY(${dir > 0 ? "9%" : "-9%"})`;
-    f.style.opacity = "0";
-    void f.offsetWidth;
-    f.style.transition = "transform .2s ease, opacity .2s ease";
-    f.style.transform = "translateY(0)"; f.style.opacity = "1";
-    setTimeout(() => { animating = false; }, 200);
-  }, 200);
+    feedPos = wrap(feedPos + dir);
+    if (dir === 1) {
+      destroySlide(sPrev);
+      sPrev = sCur; sCur = sNext;
+      sNext = buildSlide(feedPos + 1, 1);
+    } else {
+      destroySlide(sNext);
+      sNext = sCur; sCur = sPrev;
+      sPrev = buildSlide(feedPos - 1, -1);
+    }
+    setRel(sPrev, -1, false); setRel(sCur, 0, false); setRel(sNext, 1, false);
+    updateScrim(feedPos);
+    playCur();
+    animating = false;
+  }, 290);
 }
-let sy = null, sx = null;
-sheet.addEventListener("touchstart", e => { sy = e.touches[0].clientY; sx = e.touches[0].clientX; }, { passive: true });
+
+function togglePlay() {
+  if (!sCur) return;
+  if (sCur.video.paused) { sCur.video.play().catch(() => {}); sCur.slide.classList.remove("ispaused"); }
+  else { sCur.video.pause(); sCur.slide.classList.add("ispaused"); }
+}
+
+muteBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  globalMuted = !globalMuted;
+  if (sCur) sCur.video.muted = globalMuted;
+  updateMuteBtn();
+});
+
+/* gestures: vertical swipe = navigate, small tap = play/pause */
+let sy = null, sx = null, moved = false;
+sheet.addEventListener("touchstart", e => { sy = e.touches[0].clientY; sx = e.touches[0].clientX; moved = false; }, { passive: true });
+sheet.addEventListener("touchmove", e => {
+  if (sy === null) return;
+  if (Math.abs(e.touches[0].clientY - sy) > 8 || Math.abs(e.touches[0].clientX - sx) > 8) moved = true;
+}, { passive: true });
 sheet.addEventListener("touchend", e => {
   if (sy === null) return;
   const dy = e.changedTouches[0].clientY - sy, dx = e.changedTouches[0].clientX - sx;
   if (Math.abs(dy) > 55 && Math.abs(dy) > Math.abs(dx)) slideTo(dy < 0 ? 1 : -1);
+  else if (!moved) togglePlay();
   sy = sx = null;
 });
-let psy = null;
-sheet.addEventListener("pointerdown", e => { if (e.pointerType === "mouse") psy = e.clientY; });
-sheet.addEventListener("pointerup", e => { if (psy === null) return; const dy = e.clientY - psy; if (Math.abs(dy) > 55) slideTo(dy < 0 ? 1 : -1); psy = null; });
+/* mouse fallback (desktop preview of the mobile file) */
+let psy = null, pmoved = false;
+sheet.addEventListener("pointerdown", e => { if (e.pointerType === "mouse") { psy = e.clientY; pmoved = false; } });
+sheet.addEventListener("pointermove", e => { if (psy !== null && Math.abs(e.clientY - psy) > 8) pmoved = true; });
+sheet.addEventListener("pointerup", e => {
+  if (psy === null) return;
+  const dy = e.clientY - psy;
+  if (Math.abs(dy) > 55) slideTo(dy < 0 ? 1 : -1);
+  else if (!pmoved && e.target.closest(".slide")) togglePlay();
+  psy = null;
+});
 addEventListener("keydown", e => {
   if (!sheet.classList.contains("show")) return;
   if (e.key === "ArrowUp") slideTo(-1);
   else if (e.key === "ArrowDown") slideTo(1);
+  else if (e.key === " ") { e.preventDefault(); togglePlay(); }
   else if (e.key === "Escape") closeSheet();
 });
 
