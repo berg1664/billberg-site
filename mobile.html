@@ -423,6 +423,8 @@ function buildSlide(idx, rel) {
       video.src = hls;
     }
   }
+  video.muted = true;
+  video.play().catch(() => {});   // warm up immediately (muted) so sound can start instantly on a swipe
   return { idx, rel, slide, video, hls: hlsInst, item };
 }
 
@@ -448,23 +450,22 @@ function updateScrim(pos) {
     `<span>${cl.client} — ${p.name}</span>${cr ? `<span class="dt">${cr}</span>` : ""}`;
 }
 
-function playSlide(s) {
-  if (!s) return;
-  s.slide.classList.remove("ispaused");
-  s.video.muted = globalMuted;
-  const pr = s.video.play();
-  if (pr && pr.catch) {
-    pr.catch(() => {
-      // Couldn't start with sound this exact instant — play muted just for this
-      // attempt, but KEEP the user's sound choice so the next clip tries sound again.
-      try { s.video.muted = true; s.video.play().catch(() => {}); } catch (e) {}
-    });
-  }
+/* Keep the neighbouring clips playing but muted, so they stay buffered and "warm".
+   A swipe then only has to un-mute the one you land on — which browsers allow
+   reliably — instead of cold-starting playback. */
+function warmNeighbours() {
+  [sPrev, sNext].forEach(s => {
+    if (s) { try { s.video.muted = true; if (s.video.paused) s.video.play().catch(() => {}); } catch (e) {} }
+  });
 }
 
 function playCur() {
-  [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
-  playSlide(sCur);
+  warmNeighbours();
+  if (!sCur) return;
+  sCur.slide.classList.remove("ispaused");
+  try { sCur.video.currentTime = 0; } catch (e) {}
+  sCur.video.muted = globalMuted;
+  if (sCur.video.paused) { const p = sCur.video.play(); if (p && p.catch) p.catch(() => {}); }
 }
 
 function updateMuteBtn() { muteBtn.textContent = globalMuted ? "🔇" : "🔊"; }
@@ -497,12 +498,18 @@ document.getElementById("sheetClose").addEventListener("click", closeSheet);
 function slideTo(dir) {
   if (animating || FEED.length < 2) return;
   animating = true;
-  /* Start the incoming clip's sound NOW, inside the swipe gesture — browsers only
-     permit audio that's tied directly to the touch, so this must not wait for the
-     animation to finish. */
   const incoming = dir === 1 ? sNext : sPrev;
-  if (sCur) { try { sCur.video.pause(); } catch (e) {} }   // silence the outgoing immediately
-  playSlide(incoming);
+  const outgoing = sCur;
+  /* Switch audio NOW, inside the swipe gesture. The incoming clip is already warm
+     (playing muted), so un-muting it here — tied directly to the touch — is what
+     lets the browser reliably turn its sound on. */
+  if (outgoing) { try { outgoing.video.muted = true; } catch (e) {} }
+  if (incoming) {
+    incoming.slide.classList.remove("ispaused");
+    try { incoming.video.currentTime = 0; } catch (e) {}
+    incoming.video.muted = globalMuted;
+    if (incoming.video.paused) { const p = incoming.video.play(); if (p && p.catch) p.catch(() => {}); }
+  }
   [sPrev, sCur, sNext].forEach(s => { if (s) setRel(s, s.rel - dir, true); });
   setTimeout(() => {
     feedPos = wrap(feedPos + dir);
@@ -516,7 +523,9 @@ function slideTo(dir) {
       sPrev = buildSlide(feedPos - 1, -1);
     }
     setRel(sPrev, -1, false); setRel(sCur, 0, false); setRel(sNext, 1, false);
-    [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
+    warmNeighbours();                  // keep the new neighbours buffered & muted
+    sCur.video.muted = globalMuted;    // reaffirm sound on the current clip
+    if (sCur.video.paused) sCur.video.play().catch(() => {});
     updateScrim(feedPos);
     animating = false;
   }, 290);
