@@ -648,7 +648,11 @@ const gridBtn = document.getElementById("gridBtn");
 const statusEl = document.getElementById("status");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const BASE_W = () => innerWidth <= 640 ? 170 : 250;
+const BASE_W = () => {
+  if (innerWidth <= 640) return 240;                              // narrow window → grid tiles
+  // desktop: big by default and scales with the screen, so large monitors fill out
+  return Math.max(340, Math.min(innerWidth * 0.32, 680));
+};
 const PAD = 10, TOP = 64, BOT = 48;
 const MAX_SPEED = 1.8;
 const cards = [];
@@ -688,6 +692,7 @@ CLIENTS.forEach((cl, i) => {
   stage.appendChild(el);
 
   const W = innerWidth, H = innerHeight;
+  const bw = BASE_W(), bh = bw * 9 / 16 + 54;   // approx window height (16:9 body + chrome)
   const angle = (i / CLIENTS.length) * Math.PI * 2 + rand(-0.3, 0.3);
   const c = {
     el, i, cl, n,
@@ -699,10 +704,10 @@ CLIENTS.forEach((cl, i) => {
     tbname: el.querySelector(".tbname"),
     closeBtn: el.querySelector(".x"),
     view: "cover",      // cover | gallery | playing
-    x: W/2 + Math.cos(angle) * W * 0.36 - 110 + rand(-30, 30),
-    y: H/2 + Math.sin(angle) * H * 0.34 - 80 + rand(-20, 20),
+    x: W/2 + Math.cos(angle) * W * 0.27 - bw/2 + rand(-24, 24),
+    y: H/2 + Math.sin(angle) * H * 0.28 - bh/2 + rand(-18, 18),
     vx: rand(-0.34, 0.34) || 0.2, vy: rand(-0.34, 0.34) || 0.2,
-    w: BASE_W(),   // real size assigned by assignSizes() below
+    w: bw,   // real size assigned by assignSizes() below
     rx: 0, ry: 0, vrx: 0, vry: 0,
     dragging: false, spinning: false,
     tx: null, ty: null, tw: null,
@@ -970,6 +975,26 @@ function gridMetrics() {
   return slots;
 }
 
+/* size grid tiles so the whole set fills the screen without scrolling */
+function fitGridW() {
+  const gapX = 24, gapY = 24;
+  const availW = innerWidth - PAD * 2;
+  const availH = innerHeight - TOP - BOT - 24;
+  const N = cards.length || 1;
+  let best = 220;
+  for (let cols = 1; cols <= N; cols++) {
+    const rows = Math.ceil(N / cols);
+    let w = (availW - gapX * (cols - 1)) / cols;
+    const totalH = rows * (w * 9/16 + 48) + gapY * (rows - 1);
+    if (totalH > availH) {                      // too tall → shrink so the rows fit the height
+      const hMax = (availH - gapY * (rows - 1)) / rows;
+      w = Math.min(w, (hMax - 48) * 16/9);
+    }
+    if (w > best) best = w;                      // keep the column count that yields the biggest tile
+  }
+  return Math.round(best);
+}
+
 function layoutGrid(skip) {
   if (!gridOrder.length) gridOrder = [...cards];
   for (const s of gridMetrics()) {
@@ -984,7 +1009,8 @@ function layoutGrid(skip) {
 
 function enterGrid() {
   globalMode = "grid";
-  cards.forEach(c => c.gw = BASE_W());   // start uniform; resizes adjust from here
+  const gw = fitGridW();
+  cards.forEach(c => c.gw = gw);   // uniform, sized to fill the screen without scrolling
   gridOrder = [...cards];
   layoutGrid();
   statement.classList.add("hidden");
@@ -1010,16 +1036,15 @@ gridBtn.addEventListener("click", () => {
   else enterDrift();
 });
 
-/* mobile / small screens default to the calmer grid */
-const MOBILE = matchMedia("(max-width: 640px)").matches;
-if (MOBILE) enterGrid();
+/* the tidy grid is the default on every screen; "set adrift" toggles the floating view */
+enterGrid();
 
 /* ---------- resize: responsive grid + gravity toward new space ---------- */
 let lastW = innerWidth, lastH = innerHeight;
 addEventListener("resize", () => {
   const W = innerWidth, H = innerHeight;
 
-  if (globalMode === "grid") layoutGrid();           // grid reflows live
+  if (globalMode === "grid") { const gw = fitGridW(); cards.forEach(c => c.gw = gw); layoutGrid(); }  // re-fit to the new screen
   if (expandedCard) placeExpanded(expandedCard);     // keep the player centered
 
   if (globalMode === "drift") {
