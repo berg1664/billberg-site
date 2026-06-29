@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BILL BERG — Reel</title>
+<style>
+  :root {
+    --bg: #FAF8F1;
+    --ink: #1a1a1a;
+    --accent: #0000EE;     /* classic link blue */
+    --pop: #E03616;        /* the one warm pop */
+    --chrome: #ffffff;
+    --titlebar: #1a1a1a;
+    --titletext: #FAF8F1;
+    --border: #1a1a1a;
+    --line: #1a1a1a;                          /* nav/footer chrome lines */
+    --backdropc: rgba(250, 248, 241, .82);    /* dim layer behind playing video */
+    --shadow: rgba(0,0,0,.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Times New Roman", Times, serif;
+    overflow: hidden;
+    transition: background-color .35s ease;
+  }
+  /* ---------- overlay layer (film grain in dark mode) ---------- */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity .35s ease;
+  }
+  body[data-mode="dark"]::before {
+    opacity: 1;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+    opacity: .09;
+  }
+
+  /* ------- DRUDGE (black Courier caps, siren red) ------- */
+  body[data-bg="drudge"] {
+    --bg: #FCFAF5; --ink: #000000; --accent: #000000; --pop: #CC0000;
+    --chrome: #FCFAF5; --titlebar: #FCFAF5; --titletext: #000000;
+    --border: #000000; --line: #000000; --shadow: transparent;
+    --backdropc: rgba(252, 250, 245, .9);
+  }
+  body[data-bg="drudge"] .name { font: bold 19px "Courier New", monospace; letter-spacing: .06em; }
+  body[data-bg="drudge"] .sub { text-transform: uppercase; font-weight: bold; opacity: .8; }
+  body[data-bg="drudge"] nav a { color: var(--accent); font-weight: bold; text-transform: uppercase; }
+  body[data-bg="drudge"] nav a:hover { background: var(--ink); color: var(--bg); }
+
+  /* ------- LIGHT / DARK MODE ------- */
+  body[data-mode="dark"][data-bg="drudge"] {
+    --bg: #1A1613; --ink: #F2EDE4; --line: #CFC7B8;
+    --chrome: #232019; --titlebar: #232019; --border: #B8B0A2;
+    --backdropc: rgba(20, 17, 14, .88);
+    --accent: #F2EDE4; --pop: #FF3B30; --titletext: #F2EDE4;
+  }
+  body[data-bg="drudge"] .card3d { border-width: 2px; }
+  body[data-bg="drudge"] .titlebar {
+    border-bottom: 2px solid var(--border);
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  body[data-bg="drudge"] .card:hover .titlebar,
+  body[data-bg="drudge"] .card.expanded .titlebar { background: var(--ink); color: var(--bg); }
+  body[data-bg="drudge"] .card:hover .titlebar .x,
+  body[data-bg="drudge"] .card.expanded .titlebar .x { border-color: var(--bg); color: var(--bg); }
+  body[data-bg="drudge"] .titlebar .x:hover { background: var(--pop); border-color: var(--pop); }
+  body[data-bg="drudge"] .thumb::after { display: none; }
+  body[data-bg="drudge"] .meta { text-transform: uppercase; font-weight: bold; }
+  ::selection { background: var(--accent); color: var(--bg); }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 18px 28px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  nav .wordmark { pointer-events: auto; display: flex; align-items: baseline; gap: 12px; }
+  nav .wordmark .sub {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    opacity: .65;
+  }
+  .name { color: var(--ink); font: bold 16px Verdana, sans-serif; letter-spacing: .14em; }
+  nav ul { list-style: none; display: flex; gap: 26px; pointer-events: auto; }
+  nav a {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  nav a:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
+  nav a.current { color: var(--ink); text-decoration: none; cursor: default; }
+  nav a.current::before { content: "▸ "; color: var(--pop); }
+
+  /* ---------- CENTER STATEMENT ---------- */
+  .statement {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity .4s ease;
+  }
+  .statement.hidden { opacity: 0; }
+  #headline {
+    image-rendering: pixelated;
+    max-width: 86vw;
+    height: auto;
+  }
+  .statement p {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    margin-top: 14px;
+    opacity: .6;
+  }
+
+  /* ---------- BACKDROP ----------
+     Lives INSIDE the stage so all layers share one stacking context:
+     floating cards (10) < backdrop (40) < expanded card (60). */
+  #backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--backdropc);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s ease;
+  }
+  #backdrop.show { opacity: 1; pointer-events: auto; }
+
+  /* ---------- WINDOWS ---------- */
+  #stage {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .card {
+    position: absolute;
+    width: 250px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    pointer-events: auto;
+    z-index: 10;
+    perspective: 1100px;   /* per-card so cards can escape into higher z layers */
+  }
+  .card.front { z-index: 60; }
+  .card3d {
+    position: relative;
+    transform-style: preserve-3d;
+    background: var(--chrome);
+    border: 1px solid var(--border);
+    box-shadow: 4px 4px 0 var(--shadow);
+    transition: box-shadow .4s ease;
+  }
+  .card:not(.expanded):hover .card3d { box-shadow: 7px 7px 0 var(--shadow); }
+  .card.expanded .card3d { box-shadow: none; }
+
+  .titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--titlebar);
+    color: var(--titletext);
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+    letter-spacing: .03em;
+    cursor: grab;
+  }
+  .card:hover .titlebar { background: var(--accent); }
+  .card.expanded .titlebar { background: var(--accent); cursor: default; }
+  .titlebar.grabbing { cursor: grabbing; }
+  .titlebar .x {
+    width: 13px; height: 13px;
+    border: 1px solid var(--titletext);
+    font-size: 9px;
+    line-height: 11px;
+    text-align: center;
+    cursor: pointer;
+    flex: none;
+    display: none;   /* only shown when the window is expanded for playback */
+  }
+  .card.expanded .titlebar .x { display: block; }
+  .titlebar .x:hover { background: var(--pop); border-color: var(--pop); }
+
+  .thumb {
+    aspect-ratio: 16 / 9;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+  }
+  .thumb::after { /* scanlines */
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+  }
+  .card.expanded .thumb { cursor: default; }
+  .card.expanded .thumb::after { display: none; }
+
+  /* client cover (shown on the floating window) */
+  .thumb .cover {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    background: rgba(0,0,0,.28);
+    transition: background .15s ease;
+  }
+  .thumb .cover .clientname {
+    font-family: "Courier New", Courier, monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #fff;
+    font-size: clamp(13px, 2.1vw, 22px);
+    text-shadow: 0 1px 4px rgba(0,0,0,.75);
+    padding: 0 10px;
+    line-height: 1.1;
+  }
+  .card:not(.expanded) .thumb:hover .cover { background: rgba(0,0,0,.1); }
+  .card.expanded .cover { display: none; }
+
+  /* looping silent preview (Bunny animated webp) behind the cover */
+  .thumb .preview {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;     /* never intercept drag / spin / click */
+    opacity: 0;
+    transition: opacity .4s ease;
+  }
+  .thumb .preview.loaded { opacity: 1; }
+  .card.expanded .preview { display: none; }
+
+  /* gallery of a client's pieces (shown when expanded, multi-piece) */
+  .gallery {
+    position: absolute; inset: 0;
+    display: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg);
+  }
+  .card.expanded.showing-gallery .gallery { display: grid; }
+  .gitem {
+    position: relative;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    overflow: hidden;
+    font-family: "Courier New", Courier, monospace;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 0;
+    padding: 0;
+  }
+  body[data-bg="drudge"] .gitem { border-width: 2px; }
+  .gitem .gprev {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    opacity: 0; transition: opacity .35s ease;
+  }
+  .gitem .gprev.loaded { opacity: 1; }
+  .gitem .gscan {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 1px, transparent 1px 3px),
+                linear-gradient(to top, rgba(0,0,0,.6) 0%, rgba(0,0,0,.05) 45%, rgba(0,0,0,.1) 100%);
+    pointer-events: none;
+  }
+  .gitem .gname {
+    position: relative;
+    font-size: 11px; font-weight: bold;
+    text-transform: uppercase;
+    padding: 6px 8px 2px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+    text-align: left;
+    word-break: break-all;
+  }
+  .gitem .gtc {
+    position: relative;
+    font-size: 10px; opacity: .85;
+    padding: 0 8px 7px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+    text-align: left;
+  }
+  .gitem:hover { outline: 2px solid var(--pop); outline-offset: -2px; }
+
+  /* back chevron in the title bar when playing a multi-piece client */
+  .titlebar .back {
+    display: inline-block;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 5px 0 0;
+  }
+  .titlebar .back:hover { color: var(--pop); }
+
+  .player {
+    position: absolute;
+    inset: 0;
+    display: none;
+    background: #000;
+  }
+  .card.expanded.showing-player .player { display: block; }
+  .player iframe { width: 100%; height: 100%; border: 0; }
+  .player .vcredit {
+    position: absolute; left: 0; top: 0; z-index: 4;
+    max-width: 80%;
+    padding: 10px 14px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px; font-weight: bold; letter-spacing: .02em;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0,.7);
+    pointer-events: none;
+  }
+  .player .fake {
+    width: 100%; height: 100%;
+    display: grid;
+    place-items: center;
+    color: #FCFAF5;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    text-align: center;
+    line-height: 2;
+  }
+  .player .fake .bars {
+    display: flex; gap: 4px; justify-content: center; height: 22px; align-items: flex-end;
+  }
+  .player .fake .bars i {
+    width: 5px; background: var(--pop);
+    animation: eq .7s ease-in-out infinite alternate;
+  }
+  .player .fake .bars i:nth-child(2) { animation-delay: .15s; background: var(--accent); }
+  .player .fake .bars i:nth-child(3) { animation-delay: .3s; }
+  .player .fake .bars i:nth-child(4) { animation-delay: .45s; background: var(--accent); }
+  @keyframes eq { from { height: 4px; } to { height: 22px; } }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 10px;
+    padding: 4px 18px 4px 8px;  /* right padding keeps text clear of the resize grip */
+    opacity: .8;
+  }
+  .card.expanded .meta { font-size: 11px; padding: 6px 10px; }
+
+  /* ---------- ABOUT PAGE ---------- */
+  #about {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+  }
+  .biobox {
+    position: absolute;
+    left: 28px; top: 120px;
+    width: min(540px, 86vw);
+    display: flex;
+    flex-direction: column;
+    background: var(--chrome);
+    border: 1px solid var(--border);
+    box-shadow: 4px 4px 0 var(--shadow);
+    z-index: 9;
+  }
+  .biobox .titlebar { cursor: grab; }
+  .bio-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  .grip {
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 11px; height: 11px;
+    cursor: nwse-resize;
+    background: repeating-linear-gradient(135deg, var(--border) 0 1px, transparent 1px 4px);
+    touch-action: none;
+  }
+  .card.expanded .grip { display: none; }
+  body[data-bg="drudge"] .biobox { border-width: 2px; }
+  .bio-body {
+    padding: 16px 18px;
+    font: 15px/1.55 "Times New Roman", Times, serif;
+    color: var(--ink);
+    outline: none;
+    cursor: text;
+    border-bottom: 1px solid var(--border);
+  }
+  .bio-body p + p { margin-top: 12px; }
+  .bio-body .contact {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    line-height: 1.9;
+  }
+  .bio-body .contact a {
+    color: var(--pop);
+    text-decoration: none;
+    font-weight: bold;
+  }
+  .bio-body .contact a:hover { text-decoration: underline; }
+  body[data-bg="drudge"] .bio-body { font-family: "Courier New", Courier, monospace; font-size: 13px; }
+  .thumb.portrait { aspect-ratio: 4 / 5; }
+  .t-me { background: linear-gradient(165deg, #E8D6B8 0%, #C9A06A 55%, #8A5A33 100%); }
+  .phlabel {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.7;
+    color: rgba(40, 20, 0, .6);
+  }
+
+  /* ---------- STATUS BAR ---------- */
+  footer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 28px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    z-index: 100;
+    transition: background-color .35s ease;
+  }
+  footer .hint { opacity: .6; }
+  footer button {
+    font-family: inherit;
+    font-size: 11px;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  footer button:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  footer button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+  /* placeholder thumbnail art */
+  .t-bars { background: linear-gradient(90deg,
+    #c0c0c0 0 14.28%, #c0a000 0 28.57%, #00c0c0 0 42.85%,
+    #00c000 0 57.14%, #c000c0 0 71.42%, #c00000 0 85.71%, #0000c0 0 100%); }
+  .t-sunset { background: linear-gradient(180deg, #2b1055 0%, #7597de 45%, #ff9966 70%, #ff5e62 100%); }
+  .t-static { background: repeating-conic-gradient(#888 0% .0001%, #222 .0002% .0003%, #ddd .0004% .0005%); background-size: 7px 5px; }
+  .t-horizon { background:
+    linear-gradient(180deg, #000428 0 55%, transparent 55%),
+    repeating-linear-gradient(0deg, #e94caf 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(90deg, #e94caf 0 1px, transparent 1px 26px),
+    linear-gradient(180deg, #000428, #1a0533); }
+  .t-ocean { background: linear-gradient(180deg, #a8d8e8 0 50%, #1b6f8a 50% 100%); }
+  .t-film { background:
+    repeating-linear-gradient(90deg, #111 0 16px, transparent 16px 24px),
+    linear-gradient(180deg, #d9c89e, #b59f6b); }
+  .t-night { background:
+    radial-gradient(circle at 70% 30%, #fffbe0 0 6px, transparent 7px),
+    radial-gradient(1px 1px at 20% 40%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 40% 70%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 80% 60%, #fff 50%, transparent 51%),
+    linear-gradient(180deg, #0b0b2a, #14143d); }
+  .t-amber { background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.15) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #f7b733, #fc4a1a); }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 16px; }
+    footer { padding: 8px 12px; font-size: 10px; }
+  }
+</style>
+</head>
+<body data-bg="drudge" data-mode="light">
+
+<nav>
+  <div class="wordmark"><span class="name">BILL BERG</span> <span class="sub">group executive producer</span></div>
+  <ul>
+    <li><a href="#" id="navReel" class="current">Reel</a></li>
+    <li><a href="#" id="navAbout">About</a></li>
+  </ul>
+</nav>
+
+<div class="statement" id="statement"></div>
+
+<div id="stage">
+  <div id="backdrop"></div>
+</div>
+
+<div id="about" style="display:none;">
+  <div class="biobox" id="biobox">
+    <div class="titlebar"><span>about.txt</span></div>
+    <div class="bio-body" contenteditable="true" spellcheck="false">
+      <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent his career leading teams that make video work worth watching — from broadcast and branded content to documentary and digital. <i>(Click anywhere in this box to edit — type your real bio here.)</i></p>
+      <p>currently — group executive producer, [company]<br>
+      previously — [studio / agency / network]</p>
+      <p class="contact">
+      email&nbsp;&nbsp;&nbsp;&nbsp;<a href="mailto:berg.billy@gmail.com">berg.billy@gmail.com</a><br>
+      phone&nbsp;&nbsp;&nbsp;&nbsp;<a href="tel:+16512266558">651-226-6558</a><br>
+      linkedin&nbsp;<a href="https://www.linkedin.com/in/williamberg/" target="_blank" rel="noopener">/in/williamberg</a><br>
+      instagram&nbsp;<a href="https://www.instagram.com/uptownbill/" target="_blank" rel="noopener">@uptownbill</a></p>
+    </div>
+    <div class="meta"><span>about.txt</span><span>click text to edit</span></div>
+    <div class="grip" id="bioGrip" title="resize"></div>
+  </div>
+  <div class="card" id="photoCard">
+    <div class="card3d">
+      <div class="titlebar"><span>bill_berg.jpg</span></div>
+      <div class="thumb portrait t-me" style="background-image:url('bill.jpg');background-size:cover;background-position:center;"></div>
+      <div class="meta"><span>mpls, mn</span><span>b&amp;w</span></div>
+      <div class="grip" id="photoGrip" title="resize"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span id="status" style="display:none;"></span>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <button id="modeBtn">◐ dark</button>
+    <button id="gridBtn">⊞ snap to grid</button>
+  </div>
+</footer>
+
+<div id="toast" style="position:fixed;left:50%;bottom:56px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-family:'Courier New',monospace;font-size:12px;padding:6px 14px;opacity:0;transition:opacity .25s;z-index:200;pointer-events:none;"></div>
+
+<script>
+/* ============================================================================
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │  YOUR PORTFOLIO — CONTROL PANEL                                           │
+   │  This is the only section you need to touch to manage your work.          │
+   └─────────────────────────────────────────────────────────────────────────┘
+
+   Everything on the Reel page is built from the CLIENTS list below.
+   Each client is one floating window. Each "piece" inside it is one video.
+
+   ── TO ADD A CLIENT ─────────────────────────────────────────────────────────
+   Copy one whole { client: ... } block (from a { to its matching }),
+   paste it into the list, and change the details. Example:
+
+       { client: "NIKE", art: "t-night", pieces: [
+         { name: "nike_air", dir: "Jane Smith", co: "Tool", embed: "" },
+       ]},
+
+   Mind the comma after the closing  }  — every block needs one.
+
+   ── TO ADD A PIECE TO A CLIENT ──────────────────────────────────────────────
+   Add another  { name: ..., dir: ..., co: ..., embed: "" }  line inside that
+   client's  pieces: [ ... ]  list. Clients with 1 piece play it on click;
+   clients with 2+ open a little gallery to choose from.
+
+   ── TO DELETE ───────────────────────────────────────────────────────────────
+   Delete the whole { client: ... } block to remove a client, or delete a
+   single { name: ... } line to remove one piece. (Keep the commas tidy.)
+
+   ── TO REORDER ──────────────────────────────────────────────────────────────
+   Move the blocks up or down in the list. (Floating order is random anyway,
+   but it sets the grid order when you hit "snap to grid".)
+
+   ── THE FIELDS ──────────────────────────────────────────────────────────────
+   client : the brand name shown on the window (and the folder label)
+   art    : the placeholder background — pick any of:
+            t-night  t-sunset  t-amber  t-horizon  t-ocean  t-bars  t-static  t-film
+            (this shows only if a video preview fails to load)
+   name   : the piece's filename label
+   dir    : director credit — shows as the FIRST half of the credit line
+   co     : production company — shows as the SECOND half of the credit line
+            The credit displays as  dir / co  (e.g. "Jane Smith / Tool").
+            Fill in whatever text you want; leave one "" and only the other shows;
+            leave both "" and no credit line appears.
+   embed  : paste the Bunny video URL here. Leave "" for the placeholder player.
+   ============================================================================ */
+const CLIENTS = [
+  { client: "BEATS", art: "t-night", pieces: [
+    { name: "beats_Lebron x Nike", dir: "wayne mcclammy", co: "hungry man", embed: "https://player.mediadelivery.net/embed/684142/a6282114-8073-4608-ad39-ed7a84c56d8f" },
+    { name: "beats_the predicament", dir: "jim jenkins", co: "o positive", embed: "https://player.mediadelivery.net/embed/684142/15b29983-ff1b-4b7f-be7c-8e117b2f94b2" },
+    { name: "beats_ricallen", dir: "vincent peone", co: "art class", embed: "https://player.mediadelivery.net/embed/684142/38341263-95cb-4cb7-b693-46385d956c72" },
+  ]},
+  { client: "LUME", art: "t-sunset", pieces: [
+    { name: "lume_downthere", dir: "chubbynida", co: "pocko", embed: "https://player.mediadelivery.net/embed/684142/586e9e93-fe6a-45a1-8028-c1dca92bfc53" },
+    { name: "lume_randombodychanges", dir: "sawako kabuki", co: "pocko", embed: "https://player.mediadelivery.net/embed/684142/de8f9ebb-c645-4b5c-b7d8-c969ede4384c" },
+    { name: "lume_underthetatas", dir: "simon land rein", co: "pocko", embed: "https://player.mediadelivery.net/embed/684142/3d9aebb8-fd43-496a-a7c0-1f02bd9cc7a1" },
+  ]},
+  { client: "POPPI", art: "t-amber", pieces: [
+    { name: "poppi_superbowl", dir: "aiden zamiri", co: "objectanimal", embed: "https://player.mediadelivery.net/embed/684142/68fc6ddd-3ac0-4225-be54-b8578968bebb" },
+  ]},
+  { client: "UNDER ARMOUR", art: "t-static", pieces: [
+    { name: "underarmour_ruleyourself", dir: "wally pfister", co: "reset", embed: "https://player.mediadelivery.net/embed/684142/921cdf78-f4ee-4d49-b0d7-62b74f90c20d" },
+    { name: "underarmour_brady", dir: "wally pfister", co: "reset", embed: "https://player.mediadelivery.net/embed/684142/dd4b5d80-a4d0-4f1a-ba27-4e6f654caa26" },
+    { name: "underarmour_curry", dir: "wally pfister", co: "reset", embed: "https://player.mediadelivery.net/embed/684142/bce3b098-5e25-4ef5-9c36-54fe066f08da" },
+    { name: "underarmour_spieth", dir: "wally pfister", co: "reset", embed: "https://player.mediadelivery.net/embed/684142/3bad9dc3-a6b3-47d6-93fb-3f7ab79cf120" },
+  ]},
+  { client: "HONEY MAID", art: "t-film", pieces: [
+    { name: "honeymaid_anthem", dir: "martin+lindsay", co: "furlined", embed: "https://player.mediadelivery.net/embed/684142/1d1e2b61-1a35-48a2-93aa-f8c3337f4a0a" },
+    { name: "honeymaid_lovesculpture", dir: "alex cullen", co: "resonant pictures", embed: "https://player.mediadelivery.net/embed/684142/28f1ca4d-c36a-4a71-8029-371c99888025" },
+  ]},
+  { client: "MANDO", art: "t-horizon", pieces: [
+    { name: "mando_dontmaskit", dir: "jasper cable-alexander", co: "drool", embed: "https://player.mediadelivery.net/embed/684142/ea161fae-e01d-4561-a1e4-241153706df6" },
+  ]},
+  { client: "INTUIT", art: "t-ocean", pieces: [
+    { name: "intuit_superheroes", dir: "harry calbom", co: "intuit", embed: "https://player.mediadelivery.net/embed/684142/c3654e8f-4c1e-42c2-a2d7-5cdd0345a521" },
+  ]},
+  { client: "FLAMINGO", art: "t-bars", pieces: [
+    { name: "flamingo_wildride", dir: "eoin glastier", co: "stink", embed: "https://player.mediadelivery.net/embed/684142/86b48866-b61d-4ed3-a548-c032da60c6f2" },
+  ]},
+  { client: "JOCKEY", art: "t-night", pieces: [
+    { name: "jockey_supportinggreatness", dir: "guy shelmerdine", co: "smuggler", embed: "https://player.mediadelivery.net/embed/684142/3b395254-9295-4e4f-8680-ef1e312d31fe" },
+  ]},
+  { client: "TOYOTA", art: "t-sunset", pieces: [
+    { name: "toyota_fueledbyBS", dir: "morgan spurlock", co: "warrior poet", embed: "https://player.mediadelivery.net/embed/684142/511bc265-e8bb-4b53-80bf-498ce02fa1c5" },
+  ]},
+];
+const TOTAL_PIECES = CLIENTS.reduce((n, c) => n + c.pieces.length, 0);
+
+const stage = document.getElementById("stage");
+const backdrop = document.getElementById("backdrop");
+const statement = document.getElementById("statement");
+const gridBtn = document.getElementById("gridBtn");
+const statusEl = document.getElementById("status");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const BASE_W = () => innerWidth <= 640 ? 170 : 250;
+const PAD = 10, TOP = 64, BOT = 48;
+const MAX_SPEED = 1.8;
+const cards = [];
+let globalMode = "drift";     // "drift" | "grid"
+let expandedCard = null;
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+/* Bunny: build the animated preview (and poster) URL from a stored embed URL.
+   Your library's pull zone — if you ever move libraries, update this one line. */
+const BUNNY_PULL = "https://vz-ea36faae-e94.b-cdn.net";
+function bunnyId(embedUrl) { return embedUrl ? embedUrl.split("?")[0].split("/").pop() : ""; }
+function previewURL(embedUrl) { const id = bunnyId(embedUrl); return id ? `${BUNNY_PULL}/${id}/preview.webp` : ""; }
+function posterURL(embedUrl)  { const id = bunnyId(embedUrl); return id ? `${BUNNY_PULL}/${id}/thumbnail.jpg` : ""; }
+
+CLIENTS.forEach((cl, i) => {
+  const n = cl.pieces.length;
+  const heroPrev = previewURL(cl.pieces[0].embed);   // card loops the first piece
+  const el = document.createElement("div");
+  el.className = "card";
+  el.innerHTML = `
+    <div class="card3d">
+      <div class="titlebar"><span class="tbname">${cl.client.toLowerCase().replace(/ /g,"_")}/</span><span class="x" title="close">×</span></div>
+      <div class="thumb ${cl.art}">
+        <img class="preview" src="${heroPrev}" alt="" loading="lazy"
+             onload="this.classList.add('loaded')" onerror="this.style.display='none'">
+        <div class="cover">
+          <span class="clientname">${cl.client}</span>
+        </div>
+        <div class="gallery"></div>
+        <div class="player"></div>
+      </div>
+      <div class="meta"><span class="mname"></span><span class="mright"></span></div>
+      <div class="grip" title="resize"></div>
+    </div>`;
+  stage.appendChild(el);
+
+  const W = innerWidth, H = innerHeight;
+  const angle = (i / CLIENTS.length) * Math.PI * 2 + rand(-0.3, 0.3);
+  const c = {
+    el, i, cl, n,
+    el3d: el.querySelector(".card3d"),
+    titlebar: el.querySelector(".titlebar"),
+    thumb: el.querySelector(".thumb"),
+    player: el.querySelector(".player"),
+    gallery: el.querySelector(".gallery"),
+    tbname: el.querySelector(".tbname"),
+    closeBtn: el.querySelector(".x"),
+    view: "cover",      // cover | gallery | playing
+    x: W/2 + Math.cos(angle) * W * 0.36 - 110 + rand(-30, 30),
+    y: H/2 + Math.sin(angle) * H * 0.34 - 80 + rand(-20, 20),
+    vx: rand(-0.34, 0.34) || 0.2, vy: rand(-0.34, 0.34) || 0.2,
+    w: BASE_W(),   // real size assigned by assignSizes() below
+    rx: 0, ry: 0, vrx: 0, vry: 0,
+    dragging: false, spinning: false,
+    tx: null, ty: null, tw: null,
+    homeX: 0, homeY: 0, homeW: 0,
+  };
+  cards.push(c);
+
+  /* ----- corner grip: resize this window ----- */
+  el.querySelector(".grip").addEventListener("pointerdown", e => {
+    if (c === expandedCard) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const sw = c.w, sx = e.clientX;
+    c.tw = null;
+    c.resizing = true;
+    el.classList.add("front");
+    const move = ev => {
+      c.w = Math.max(150, Math.min(460, sw + (ev.clientX - sx)));
+      if (globalMode === "grid") {
+        c.gw = c.w;
+        layoutGrid(c);   // the rest of the grid reflows around the new size
+      }
+    };
+    const up = () => {
+      c.resizing = false;
+      el.classList.remove("front");
+      if (globalMode === "grid") layoutGrid();   // resized window glides into its flow slot
+      removeEventListener("pointermove", move);
+      removeEventListener("pointerup", up);
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  });
+
+  /* ----- title bar drag: move the window (and throw it) ----- */
+  c.titlebar.addEventListener("pointerdown", e => {
+    if (e.target === c.closeBtn || c === expandedCard) return;
+    e.preventDefault();
+    c.dragging = true;
+    c.tx = c.ty = null;
+    c.titlebar.classList.add("grabbing");
+    el.classList.add("front");
+    let lx = e.clientX, ly = e.clientY;
+    let lvx = 0, lvy = 0;
+    const move = ev => {
+      const dx = ev.clientX - lx, dy = ev.clientY - ly;
+      c.x += dx; c.y += dy;
+      // smoothed velocity over recent movement — this is the throw power
+      lvx = lvx * 0.55 + dx * 0.45;
+      lvy = lvy * 0.55 + dy * 0.45;
+      lx = ev.clientX; ly = ev.clientY;
+
+      /* grid mode: live-reorder as the window is carried over other slots */
+      if (globalMode === "grid") {
+        const slots = gridMetrics();
+        const cx = c.x + c.w / 2, cy = c.y + (c.w * 9/16 + 48) / 2;
+        let best = 0, bd = Infinity;
+        slots.forEach((s, i) => {
+          const d = (s.x + s.w/2 - cx) ** 2 + (s.y + s.h/2 - cy) ** 2;
+          if (d < bd) { bd = d; best = i; }
+        });
+        const cur = gridOrder.indexOf(c);
+        if (best !== cur) {
+          gridOrder.splice(cur, 1);
+          gridOrder.splice(best, 0, c);
+          layoutGrid(c);   // everyone else animates to their new slot
+        }
+      }
+    };
+    const up = () => {
+      c.dragging = false;
+      c.titlebar.classList.remove("grabbing");
+      el.classList.remove("front");
+      if (globalMode === "drift") {
+        c.vx = Math.max(-7, Math.min(7, lvx * 1.1)) || c.vx;
+        c.vy = Math.max(-7, Math.min(7, lvy * 1.1)) || c.vy;
+      } else {           // grid: snap into the slot it was carried to
+        c.vx = c.vy = 0;
+        layoutGrid();
+      }
+      removeEventListener("pointermove", move);
+      removeEventListener("pointerup", up);
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  });
+
+  /* ----- thumb: drag to spin in 3D, click to expand ----- */
+  c.thumb.addEventListener("pointerdown", e => {
+    if (c === expandedCard) return;
+    e.preventDefault();
+    c.spinning = true;
+    el.classList.add("front");
+    let lx = e.clientX, ly = e.clientY, moved = 0;
+    const move = ev => {
+      const dx = ev.clientX - lx, dy = ev.clientY - ly;
+      moved += Math.abs(dx) + Math.abs(dy);
+      c.vry = dx * 0.45;
+      c.vrx = -dy * 0.45;
+      lx = ev.clientX; ly = ev.clientY;
+    };
+    const up = () => {
+      c.spinning = false;
+      if (moved < 6) { expand(c); }
+      else { el.classList.remove("front"); }
+      removeEventListener("pointermove", move);
+      removeEventListener("pointerup", up);
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  });
+
+  /* ----- close button ----- */
+  c.closeBtn.addEventListener("pointerdown", e => e.stopPropagation());
+  c.closeBtn.addEventListener("click", () => {
+    if (c !== expandedCard) return;
+    if (c.view === "playing" && c.n > 1) showGallery(c);   // step back to the client's set
+    else collapse(c);
+  });
+});
+
+/* ---------- drift sizing: all clients equal, slight variation ---------- */
+function assignSizes(immediate) {
+  const base = BASE_W();
+  cards.forEach(c => {
+    const w = base * (1 + rand(-0.04, 0.04));
+    if (immediate) c.w = w;
+    else c.tw = w;
+  });
+}
+assignSizes(true);
+statusEl.textContent = TOTAL_PIECES + " pieces · " + CLIENTS.length + " clients in orbit";
+
+/* ---------- expand → gallery → play ---------- */
+function placeExpanded(c) {
+  const chrome = 54;                                  // title bar + meta strip
+  const maxByW = Math.min(innerWidth * 0.86, 1280);   // up to 86% wide, capped at 1280
+  const maxByH = (innerHeight - TOP - BOT) * 0.92;    // don't let the 16:9 body overflow vertically
+  const targetW = Math.min(maxByW, (maxByH - chrome) * 16/9);
+  c.tw = targetW;
+  c.tx = (innerWidth - targetW) / 2;
+  const estH = targetW * 9/16 + chrome;
+  c.ty = Math.max(TOP, (innerHeight - estH) / 2);
+}
+
+/* credit line: "director / production company" (skips an empty half cleanly) */
+function credit(p) { return [p.dir, p.co].filter(Boolean).join(" / "); }
+
+function fakePlayer(piece) {
+  const cr = credit(piece);
+  const creditEl = cr ? `<div class="vcredit">${cr}</div>` : "";
+  if (piece.embed) {
+    return `<iframe src="${piece.embed}?autoplay=true&loop=false&preload=true&responsive=true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>${creditEl}`;
+  }
+  return `
+    <div class="fake">
+      <div>
+        <div class="bars"><i></i><i></i><i></i><i></i></div>
+        NOW PLAYING — ${piece.name}<br>
+        <span style="opacity:.5">(your Vimeo / YouTube embed drops in here)</span>
+      </div>
+    </div>${creditEl}`;
+}
+
+function showGallery(c) {
+  c.view = "gallery";
+  c.tbname.textContent = c.cl.client.toLowerCase().replace(/ /g,"_") + "/";
+  c.player.innerHTML = "";
+  c.gallery.innerHTML = c.cl.pieces.map((p, idx) => `
+    <button class="gitem ${c.cl.art}" data-idx="${idx}">
+      <img class="gprev" src="${previewURL(p.embed)}" alt="" loading="lazy"
+           onload="this.classList.add('loaded')" onerror="this.style.display='none'">
+      <span class="gscan"></span>
+      <span class="gname">${p.name}</span>
+      <span class="gtc">${credit(p)}</span>
+    </button>`).join("");
+  c.gallery.querySelectorAll(".gitem").forEach(btn => {
+    btn.addEventListener("click", () => playPiece(c, +btn.dataset.idx));
+  });
+  c.el.classList.add("showing-gallery");
+  c.el.classList.remove("showing-player");
+  statusEl.textContent = c.cl.client.toLowerCase().replace(/ /g,"_") + "/ — " + c.n + " pieces";
+}
+
+function playPiece(c, idx) {
+  c.view = "playing";
+  const piece = c.cl.pieces[idx];
+  c.playingIdx = idx;
+  c.tbname.innerHTML = (c.n > 1 ? `<span class="back" title="back to ${c.cl.client}">‹</span> ` : "") +
+    c.cl.client.toLowerCase().replace(/ /g,"_") + "/" + piece.name;
+  c.player.innerHTML = fakePlayer(piece);
+  c.el.classList.add("showing-player");
+  c.el.classList.remove("showing-gallery");
+  const back = c.tbname.querySelector(".back");
+  if (back) back.addEventListener("click", e => { e.stopPropagation(); showGallery(c); });
+  statusEl.textContent = "now playing — " + piece.name;
+}
+
+function expand(c) {
+  if (expandedCard) collapse(expandedCard);
+  expandedCard = c;
+  c.homeX = c.x; c.homeY = c.y; c.homeW = c.w;
+  c.vx = c.vy = 0;
+  c.el.classList.add("expanded", "front");
+  backdrop.classList.add("show");
+  statement.classList.add("hidden");
+  placeExpanded(c);
+  if (c.n === 1) playPiece(c, 0);   // single-piece clients play straight away
+  else showGallery(c);
+}
+
+function collapse(c) {
+  c.el.classList.remove("expanded", "front", "showing-gallery", "showing-player");
+  c.player.innerHTML = "";
+  c.gallery.innerHTML = "";
+  c.view = "cover";
+  c.tbname.textContent = c.cl.client.toLowerCase().replace(/ /g,"_") + "/";
+  backdrop.classList.remove("show");
+  if (globalMode === "drift") statement.classList.remove("hidden");
+  c.tw = c.homeW || BASE_W();
+  const h = c.tw * 9/16 + 48;
+  c.tx = Math.max(PAD, Math.min(innerWidth - c.tw - PAD, c.homeX));
+  c.ty = Math.max(TOP, Math.min(innerHeight - h - BOT, c.homeY));
+  c.returning = true;
+  expandedCard = null;
+  statusEl.textContent = TOTAL_PIECES + " pieces · " + CLIENTS.length + (globalMode === "drift" ? " clients in orbit" : " clients on the grid");
+}
+backdrop.addEventListener("click", () => expandedCard && collapse(expandedCard));
+addEventListener("keydown", e => { if (e.key === "Escape" && expandedCard) collapse(expandedCard); });
+
+/* ---------- grid layout: flow-based, supports mixed window sizes ---------- */
+let gridOrder = [];
+
+function gridMetrics() {
+  const gapX = 24, gapY = 24;
+  const maxW = innerWidth - PAD * 2;
+  const items = gridOrder.map(c => {
+    const w = c.gw || BASE_W();
+    return { c, w, h: w * 9/16 + 48 };
+  });
+  // wrap into rows like text
+  const rows = [];
+  let row = [], roww = 0;
+  for (const it of items) {
+    const need = (row.length ? gapX : 0) + it.w;
+    if (row.length && roww + need > maxW) { rows.push(row); row = []; roww = 0; }
+    roww += (row.length ? gapX : 0) + it.w;
+    row.push(it);
+  }
+  if (row.length) rows.push(row);
+  // position rows, centered
+  const totalH = rows.reduce((s, r) => s + Math.max(...r.map(i => i.h)), 0) + gapY * (rows.length - 1);
+  let y = Math.max(TOP + 8, (innerHeight - totalH) / 2);
+  const slots = [];
+  for (const r of rows) {
+    const rw = r.reduce((s, i) => s + i.w, 0) + gapX * (r.length - 1);
+    let x = Math.max(PAD, (innerWidth - rw) / 2);
+    const rh = Math.max(...r.map(i => i.h));
+    for (const it of r) {
+      slots.push({ c: it.c, x, y: y + (rh - it.h) / 2, w: it.w, h: it.h });
+      x += it.w + gapX;
+    }
+    y += rh + gapY;
+  }
+  return slots;
+}
+
+function layoutGrid(skip) {
+  if (!gridOrder.length) gridOrder = [...cards];
+  for (const s of gridMetrics()) {
+    const c = s.c;
+    if (c === expandedCard || c === skip) continue;
+    c.tw = s.w;
+    c.tx = s.x;
+    c.ty = s.y;
+    c.vx = c.vy = 0;
+  }
+}
+
+function enterGrid() {
+  globalMode = "grid";
+  cards.forEach(c => c.gw = BASE_W());   // start uniform; resizes adjust from here
+  gridOrder = [...cards];
+  layoutGrid();
+  statement.classList.add("hidden");
+  gridBtn.textContent = "≋ set adrift";
+  statusEl.textContent = TOTAL_PIECES + " pieces · " + cards.length + " clients on the grid";
+}
+function enterDrift() {
+  globalMode = "drift";
+  cards.forEach(c => {
+    c.tx = c.ty = null;
+    c.vx = rand(-0.41, 0.41) || 0.27;
+    c.vy = rand(-0.41, 0.41) || 0.27;
+  });
+  assignSizes(false);   // re-size by piece count each drift
+  statement.classList.remove("hidden");
+  gridBtn.textContent = "⊞ snap to grid";
+  statusEl.textContent = TOTAL_PIECES + " pieces · " + cards.length + " clients in orbit";
+}
+
+gridBtn.addEventListener("click", () => {
+  if (expandedCard) collapse(expandedCard);
+  if (globalMode === "drift") enterGrid();
+  else enterDrift();
+});
+
+/* mobile / small screens default to the calmer grid */
+const MOBILE = matchMedia("(max-width: 640px)").matches;
+if (MOBILE) enterGrid();
+
+/* ---------- resize: responsive grid + gravity toward new space ---------- */
+let lastW = innerWidth, lastH = innerHeight;
+addEventListener("resize", () => {
+  const W = innerWidth, H = innerHeight;
+
+  if (globalMode === "grid") layoutGrid();           // grid reflows live
+  if (expandedCard) placeExpanded(expandedCard);     // keep the player centered
+
+  if (globalMode === "drift") {
+    // window grew → each card gets its own random spot scattered in the new space
+    if (W - lastW > 30) {
+      for (const c of cards) {
+        if (c === expandedCard) continue;
+        if (Math.random() < 0.7) {   // most cards wander over, a few stay put
+          c.gx = rand(lastW * 0.65, W - c.w - PAD);
+          c.gy = rand(TOP, H - (c.w * 9/16 + 48) - BOT);
+          c.gttl = c.gmax = Math.round(rand(120, 220));   // staggered arrival
+        }
+      }
+    }
+    if (H - lastH > 30) {
+      for (const c of cards) {
+        if (c === expandedCard) continue;
+        if (Math.random() < 0.7) {
+          c.gx = rand(PAD, W - c.w - PAD);
+          c.gy = rand(lastH * 0.65, H - (c.w * 9/16 + 48) - BOT);
+          c.gttl = c.gmax = Math.round(rand(120, 220));
+        }
+      }
+    }
+    // (shrinking is already handled by the bounce clamp each frame)
+  }
+  lastW = W; lastH = H;
+});
+
+/* ---------- collisions (DVD screensaver) ---------- */
+function collide() {
+  for (let a = 0; a < cards.length; a++) {
+    for (let b = a + 1; b < cards.length; b++) {
+      const A = cards[a], B = cards[b];
+      if (A === expandedCard || B === expandedCard) continue;
+      if (A.tx !== null || B.tx !== null) continue;
+      const ah = A.w * 9/16 + 48, bh = B.w * 9/16 + 48;
+      const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x);
+      const oy = Math.min(A.y + ah, B.y + bh) - Math.max(A.y, B.y);
+      if (ox <= 0 || oy <= 0) continue;
+
+      /* a window being dragged or resized is immovable — it bumps the other aside */
+      if (A.dragging || B.dragging || A.resizing || B.resizing) {
+        const R = (A.dragging || A.resizing) ? A : B;   // the one in the user's hand
+        const O = R === A ? B : A;                       // the one getting bumped
+        if (O.dragging || O.resizing) continue;
+        const oh = O.w * 9/16 + 48;
+        const rh = R.w * 9/16 + 48;
+        if (ox < oy) {
+          const dir = (O.x + O.w / 2 < R.x + R.w / 2) ? -1 : 1;
+          O.x += dir * ox;
+          if (R.dragging) O.vx = dir * Math.max(Math.abs(O.vx), 1.4);  // shoved with momentum
+        } else {
+          const dir = (O.y + oh / 2 < R.y + rh / 2) ? -1 : 1;
+          O.y += dir * oy;
+          if (R.dragging) O.vy = dir * Math.max(Math.abs(O.vy), 1.4);
+        }
+        O.x = Math.max(PAD, Math.min(innerWidth - O.w - PAD, O.x));
+        O.y = Math.max(TOP, Math.min(innerHeight - oh - BOT, O.y));
+        continue;
+      }
+
+      /* normal drift collision: equal exchange */
+      if (ox < oy) {
+        const dir = A.x < B.x ? -1 : 1;
+        A.x += dir * ox / 2; B.x -= dir * ox / 2;
+        const t = A.vx; A.vx = B.vx; B.vx = t;
+      } else {
+        const dir = A.y < B.y ? -1 : 1;
+        A.y += dir * oy / 2; B.y -= dir * oy / 2;
+        const t = A.vy; A.vy = B.vy; B.vy = t;
+      }
+    }
+  }
+}
+
+/* ---------- gentle dispersal into new space ---------- */
+function applyAttractors() {
+  for (const c of cards) {
+    if (!c.gttl || c === expandedCard || c.dragging || c.tx !== null) continue;
+    c.gttl--;
+    if (c.gttl <= 0) { c.gttl = 0; continue; }
+    const strength = 0.05 * (c.gttl / c.gmax);   // fades out
+    const cx = c.x + c.w / 2, cy = c.y + (c.w * 9/16 + 48) / 2;
+    const dx = c.gx - cx, dy = c.gy - cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist < 40) { c.gttl = 0; continue; }     // close enough — resume wandering
+    c.vx += (dx / dist) * strength;
+    c.vy += (dy / dist) * strength;
+    // clamp speed so the pull stays graceful
+    const sp = Math.hypot(c.vx, c.vy);
+    if (sp > MAX_SPEED) { c.vx = c.vx / sp * MAX_SPEED; c.vy = c.vy / sp * MAX_SPEED; }
+  }
+}
+
+/* ---------- main loop ---------- */
+function frame() {
+  const W = innerWidth, H = innerHeight;
+
+  for (const c of cards) {
+    const h = c.w * 9/16 + 48;
+
+    /* lerp width toward target (grid uniformity, expand, restore, re-randomize) */
+    if (c.tw !== null) {
+      c.w = lerp(c.w, c.tw, 0.14);
+      if (Math.abs(c.w - c.tw) < 0.5) { c.w = c.tw; c.tw = null; }
+    }
+
+    /* lerp toward targets (grid / expand / return-home) */
+    if (c.tx !== null) {
+      c.x = lerp(c.x, c.tx, 0.14);
+      c.y = lerp(c.y, c.ty, 0.14);
+      if (Math.abs(c.x - c.tx) < 0.5 && Math.abs(c.y - c.ty) < 0.5) {
+        c.x = c.tx; c.y = c.ty;
+        // in grid mode, hold position (targets stay so resize can update them)
+        if (globalMode !== "grid" || c.returning) {
+          c.tx = c.ty = null;
+          if (c.returning) {
+            c.returning = false;
+            if (globalMode === "drift") { c.vx = rand(-0.41, 0.41) || 0.27; c.vy = rand(-0.41, 0.41) || 0.27; }
+          }
+        }
+      }
+    }
+    /* free drift (paused entirely while a video is open) */
+    else if (globalMode === "drift" && !expandedCard && c !== expandedCard && !c.dragging && !c.resizing && !reduceMotion) {
+      // thrown windows bleed off speed until back to a gentle cruise
+      const sp = Math.hypot(c.vx, c.vy);
+      if (sp > 0.64) { c.vx *= 0.985; c.vy *= 0.985; }
+      c.x += c.vx;
+      c.y += c.vy;
+      if (c.x <= PAD || c.x >= W - c.w - PAD) c.vx *= -1;
+      if (c.y <= TOP || c.y >= H - h - BOT)   c.vy *= -1;
+      c.x = Math.max(PAD, Math.min(W - c.w - PAD, c.x));
+      c.y = Math.max(TOP, Math.min(H - h - BOT, c.y));
+    }
+    /* keep dragged windows on screen */
+    if (c.dragging) {
+      c.x = Math.max(PAD, Math.min(W - c.w - PAD, c.x));
+      c.y = Math.max(TOP, Math.min(H - h - BOT, c.y));
+    }
+
+    /* 3D rotation: spin inertia, always settle back flat */
+    c.rx += c.vrx; c.ry += c.vry;
+    c.vrx *= 0.93; c.vry *= 0.93;
+    if (!c.spinning) { c.rx *= 0.95; c.ry *= 0.95; }
+    if (c === expandedCard) { c.rx *= 0.8; c.ry *= 0.8; }
+
+    c.el.style.width = c.w + "px";
+    c.el.style.transform = `translate(${c.x}px, ${c.y}px)`;
+    c.el3d.style.transform = `rotateX(${c.rx}deg) rotateY(${c.ry}deg)`;
+  }
+
+  if (page === "about") photoFrame();
+  if (globalMode === "drift" && !expandedCard && !reduceMotion) {
+    applyAttractors();
+    collide();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- ABOUT PAGE: navigation + photo physics ---------- */
+let page = "reel";
+const aboutEl = document.getElementById("about");
+const bioEl = document.getElementById("biobox");
+const photoEl = document.getElementById("photoCard");
+const photo3d = photoEl.querySelector(".card3d");
+const PHOTO_W = () => innerWidth <= 640 ? 170 : 312;
+
+const ph = {
+  x: innerWidth * 0.7, y: innerHeight * 0.22,
+  vx: 0.3, vy: 0.25,
+  w: PHOTO_W(),
+  rx: 0, ry: 0, vrx: 0, vry: 0,
+  dragging: false, spinning: false,
+};
+photoEl.style.width = ph.w + "px";
+
+document.getElementById("photoGrip").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  const sw = ph.w, sx = e.clientX;
+  ph.resizing = true;
+  const move = ev => {
+    ph.w = Math.max(150, Math.min(440, sw + (ev.clientX - sx)));
+  };
+  const up = () => {
+    ph.resizing = false;
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+
+function goto(p) {
+  if (expandedCard) collapse(expandedCard);
+  page = p;
+  stage.style.display = p === "reel" ? "" : "none";
+  aboutEl.style.display = p === "about" ? "" : "none";
+  if (p === "about" && !bioInit) {
+    bioInit = true;
+    requestAnimationFrame(placeBio);
+  }
+  gridBtn.style.display = p === "reel" ? "" : "none";
+  document.getElementById("navReel").classList.toggle("current", p === "reel");
+  document.getElementById("navAbout").classList.toggle("current", p === "about");
+  statusEl.textContent = p === "reel"
+    ? TOTAL_PIECES + " pieces · " + cards.length + (globalMode === "drift" ? " clients in orbit" : " clients on the grid")
+    : "about.txt — unsaved changes";
+}
+document.getElementById("navReel").addEventListener("click", e => { e.preventDefault(); goto("reel"); });
+document.getElementById("navAbout").addEventListener("click", e => { e.preventDefault(); goto("about"); });
+
+/* photo: title bar drag + throw */
+photoEl.querySelector(".titlebar").addEventListener("pointerdown", e => {
+  if (e.target.classList.contains("x")) return;
+  e.preventDefault();
+  ph.dragging = true;
+  photoEl.querySelector(".titlebar").classList.add("grabbing");
+  let lx = e.clientX, ly = e.clientY, lvx = 0, lvy = 0;
+  const move = ev => {
+    const dx = ev.clientX - lx, dy = ev.clientY - ly;
+    ph.x += dx; ph.y += dy;
+    lvx = lvx * 0.55 + dx * 0.45;
+    lvy = lvy * 0.55 + dy * 0.45;
+    lx = ev.clientX; ly = ev.clientY;
+  };
+  const up = () => {
+    ph.dragging = false;
+    photoEl.querySelector(".titlebar").classList.remove("grabbing");
+    ph.vx = Math.max(-7, Math.min(7, lvx * 1.1)) || ph.vx;
+    ph.vy = Math.max(-7, Math.min(7, lvy * 1.1)) || ph.vy;
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+
+/* photo: thumb drag spins */
+photoEl.querySelector(".thumb").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  ph.spinning = true;
+  let lx = e.clientX, ly = e.clientY, moved = 0;
+  const move = ev => {
+    const dx = ev.clientX - lx, dy = ev.clientY - ly;
+    moved += Math.abs(dx) + Math.abs(dy);
+    ph.vry = dx * 0.45;
+    ph.vrx = -dy * 0.45;
+    lx = ev.clientX; ly = ev.clientY;
+  };
+  const up = () => {
+    ph.spinning = false;
+    if (moved < 6) toast("hello.");
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+
+function photoFrame() {
+  const W = innerWidth, H = innerHeight;
+  const w = ph.w;
+  photoEl.style.width = w + "px";
+  const hRect = photoEl.getBoundingClientRect();
+  const h = hRect.height || w * 1.25 + 46;
+
+  if (!ph.dragging && !ph.resizing && !reduceMotion) {
+    const sp = Math.hypot(ph.vx, ph.vy);
+    if (sp > 0.55) { ph.vx *= 0.985; ph.vy *= 0.985; }
+    ph.x += ph.vx;
+    ph.y += ph.vy;
+    if (ph.x <= PAD || ph.x >= W - w - PAD) ph.vx *= -1;
+    if (ph.y <= TOP || ph.y >= H - h - BOT) ph.vy *= -1;
+    ph.x = Math.max(PAD, Math.min(W - w - PAD, ph.x));
+    ph.y = Math.max(TOP, Math.min(H - h - BOT, ph.y));
+
+    /* bounce off the fixed bio box (with energy loss so it can't buzz in corners) */
+    const b = bioEl.getBoundingClientRect();
+    const ox = Math.min(ph.x + w, b.right) - Math.max(ph.x, b.left);
+    const oy = Math.min(ph.y + h, b.bottom) - Math.max(ph.y, b.top);
+    if (ox > 0 && oy > 0) {
+      if (ox < oy) {
+        ph.x += (ph.x + w / 2 < (b.left + b.right) / 2 ? -ox : ox);
+        ph.vx *= -0.85;
+      } else {
+        ph.y += (ph.y + h / 2 < (b.top + b.bottom) / 2 ? -oy : oy);
+        ph.vy *= -0.85;
+      }
+      // re-clamp to viewport in case the push-out shoved it into a wall
+      ph.x = Math.max(PAD, Math.min(W - w - PAD, ph.x));
+      ph.y = Math.max(TOP, Math.min(H - h - BOT, ph.y));
+    }
+  }
+  if (ph.dragging) {
+    ph.x = Math.max(PAD, Math.min(W - w - PAD, ph.x));
+    ph.y = Math.max(TOP, Math.min(H - h - BOT, ph.y));
+  }
+
+  ph.rx += ph.vrx; ph.ry += ph.vry;
+  ph.vrx *= 0.93; ph.vry *= 0.93;
+  if (!ph.spinning) { ph.rx *= 0.95; ph.ry *= 0.95; }
+
+  photoEl.style.transform = `translate(${ph.x}px, ${ph.y}px)`;
+  photo3d.style.transform = `rotateX(${ph.rx}deg) rotateY(${ph.ry}deg)`;
+}
+
+/* ---------- bio box: draggable + resizable ---------- */
+let bioInit = false;
+function placeBio() {
+  const r = bioEl.getBoundingClientRect();
+  bioEl.style.top = Math.max(TOP + 8, (innerHeight - r.height) / 2) + "px";
+  bioEl.style.left = "28px";
+}
+
+bioEl.querySelector(".titlebar").addEventListener("pointerdown", e => {
+  if (e.target.classList.contains("x")) return;
+  e.preventDefault();
+  bioEl.querySelector(".titlebar").classList.add("grabbing");
+  let lx = e.clientX, ly = e.clientY;
+  const move = ev => {
+    const r = bioEl.getBoundingClientRect();
+    let nx = r.left + (ev.clientX - lx);
+    let ny = r.top + (ev.clientY - ly);
+    nx = Math.max(PAD, Math.min(innerWidth - r.width - PAD, nx));
+    ny = Math.max(TOP, Math.min(innerHeight - r.height - BOT, ny));
+    bioEl.style.left = nx + "px";
+    bioEl.style.top = ny + "px";
+    lx = ev.clientX; ly = ev.clientY;
+  };
+  const up = () => {
+    bioEl.querySelector(".titlebar").classList.remove("grabbing");
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+
+document.getElementById("bioGrip").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  const r = bioEl.getBoundingClientRect();
+  const sw = r.width, sh = r.height, sx = e.clientX, sy = e.clientY;
+  const move = ev => {
+    const nw = Math.max(280, Math.min(innerWidth * 0.9, sw + (ev.clientX - sx)));
+    const nh = Math.max(200, Math.min(innerHeight - r.top - BOT, sh + (ev.clientY - sy)));
+    bioEl.style.width = nw + "px";
+    bioEl.style.height = nh + "px";
+  };
+  const up = () => {
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  addEventListener("pointermove", move);
+  addEventListener("pointerup", up);
+});
+
+/* ---------- light / dark mode ---------- */
+const modeBtn = document.getElementById("modeBtn");
+modeBtn.addEventListener("click", () => {
+  const goingDark = document.body.dataset.mode !== "dark";
+  document.body.dataset.mode = goingDark ? "dark" : "light";
+  modeBtn.textContent = goingDark ? "◑ light" : "◐ dark";
+});
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.opacity = 0, 2200);
+}
+</script>
+</body>
+</html>

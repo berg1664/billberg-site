@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BILL BERG — Reel (mobile)</title>
+<style>
+  :root {
+    --bg: #FCFAF5; --ink: #000; --accent: #000; --pop: #CC0000;
+    --chrome: #FCFAF5; --titlebar: #FCFAF5; --titletext: #000;
+    --border: #000; --line: #000;
+  }
+  body[data-mode="dark"] {
+    --bg: #1A1613; --ink: #F2EDE4; --line: #CFC7B8; --chrome: #232019;
+    --titlebar: #232019; --border: #B8B0A2;
+    --accent: #F2EDE4; --pop: #FF3B30; --titletext: #F2EDE4;
+  }
+  body[data-mode="dark"]::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    z-index: 60; mix-blend-mode: overlay; opacity: .09;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Times New Roman", Times, serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 40px;
+  }
+
+  /* ---------- top bar ---------- */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand .name { font: bold 16px "Courier New", monospace; letter-spacing: .1em; color: var(--ink); }
+  .brand .sub { font-family: "Courier New", monospace; font-size: 10px; opacity: .6; text-transform: uppercase; margin-top: 2px; }
+  nav { display: flex; align-items: center; gap: 14px; }
+  nav a {
+    font-family: "Courier New", monospace; font-size: 13px; font-weight: bold; text-transform: uppercase;
+    color: var(--accent); text-decoration: none; padding: 6px 4px;
+  }
+  nav a.current { color: var(--ink); border-bottom: 2px solid var(--pop); }
+  .modeToggle {
+    font-family: "Courier New", monospace; font-size: 16px;
+    background: none; border: 1px solid var(--line); color: var(--ink);
+    width: 34px; height: 34px; cursor: pointer; flex: none;
+  }
+
+  /* ---------- client feed (one card per client) ---------- */
+  main { padding: 14px; background: var(--bg); min-height: 100vh; }
+  .reel { display: flex; flex-direction: column; gap: 16px; max-width: 520px; margin: 0 auto; }
+  .tile {
+    background: var(--chrome); border: 2px solid var(--border);
+    box-shadow: 3px 3px 0 rgba(0,0,0,.14);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  body[data-mode="dark"] .tile { box-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+  .tile .bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--titlebar); color: var(--titletext);
+    border-bottom: 2px solid var(--border);
+    font-family: "Courier New", monospace; font-size: 12px; font-weight: bold; text-transform: uppercase;
+    padding: 7px 10px; white-space: nowrap; overflow: hidden;
+  }
+  .bar .fn { overflow: hidden; text-overflow: ellipsis; }
+  .thumb {
+    position: relative; aspect-ratio: 4/5; overflow: hidden; cursor: pointer;
+  }
+  .thumb .ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .4s ease; }
+  .thumb .ph.loaded { opacity: 1; }
+  .thumb .cover {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: rgba(0,0,0,.28);
+  }
+  .thumb .cover .clientname {
+    font-family: "Courier New", monospace; font-weight: bold; text-transform: uppercase;
+    letter-spacing: .04em; color: #fff; font-size: clamp(18px, 6vw, 30px);
+    text-shadow: 0 1px 5px rgba(0,0,0,.7); text-align: center; padding: 0 14px;
+  }
+  .tile .meta {
+    display: flex; justify-content: space-between;
+    font-family: "Courier New", monospace; font-size: 11px;
+    padding: 7px 10px; border-top: 2px solid var(--border); opacity: .85;
+    white-space: nowrap; text-transform: uppercase;
+  }
+
+  /* placeholder art */
+  .t-bars { background: linear-gradient(90deg,#c0c0c0 0 14%,#c0a000 0 28%,#00c0c0 0 43%,#00c000 0 57%,#c000c0 0 71%,#c00000 0 86%,#0000c0 0 100%); }
+  .t-sunset { background: linear-gradient(180deg,#2b1055,#7597de 45%,#ff9966 72%,#ff5e62); }
+  .t-night { background: radial-gradient(circle at 60% 28%,#fffbe0 0 7px,transparent 8px),linear-gradient(180deg,#0b0b2a,#14143d); }
+  .t-static { background: repeating-conic-gradient(#888 0 .0001%,#222 .0002% .0003%,#ddd .0004% .0005%); background-size:7px 5px; }
+  .t-horizon { background: linear-gradient(180deg,#000428 0 55%,transparent 55%),repeating-linear-gradient(0deg,#e94caf 0 1px,transparent 1px 12px),linear-gradient(180deg,#000428,#1a0533); }
+  .t-ocean { background: linear-gradient(180deg,#a8d8e8 0 50%,#1b6f8a 50%); }
+  .t-film { background: repeating-linear-gradient(90deg,#111 0 16px,transparent 16px 24px),linear-gradient(180deg,#d9c89e,#b59f6b); }
+  .t-amber { background: repeating-linear-gradient(45deg,rgba(0,0,0,.15) 0 2px,transparent 2px 8px),linear-gradient(135deg,#f7b733,#fc4a1a); }
+
+  /* ---------- client gallery sheet (choose a piece) ---------- */
+  #gsheet {
+    position: fixed; inset: 0; background: var(--bg); z-index: 90;
+    display: none; flex-direction: column;
+  }
+  #gsheet.show { display: flex; }
+  #gsheet .ghead {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; border-bottom: 2px solid var(--line);
+    font-family: "Courier New", monospace; font-size: 14px; font-weight: bold; text-transform: uppercase;
+  }
+  #gsheet .gclose {
+    font-family: "Courier New", monospace; font-size: 14px;
+    background: var(--pop); color: #fff; border: none; padding: 8px 14px; cursor: pointer;
+  }
+  #gsheet .glist { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-width: 520px; margin: 0 auto; width: 100%; }
+  .gpiece {
+    border: 2px solid var(--border); background: var(--chrome); cursor: pointer;
+    display: flex; flex-direction: column; overflow: hidden; padding: 0; text-align: left;
+  }
+  .gpiece .gthumb { position: relative; aspect-ratio: 4/5; overflow: hidden; }
+  .gpiece .gthumb .gprev { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s ease; }
+  .gpiece .gthumb .gprev.loaded { opacity: 1; }
+  .gpiece .gthumb .gscan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,rgba(0,0,0,.07) 0 1px,transparent 1px 3px),linear-gradient(to top,rgba(0,0,0,.45),rgba(0,0,0,.05)); pointer-events: none; }
+  .gpiece .gthumb .gplay { position: absolute; inset: 0; display: grid; place-items: center; }
+  .gpiece .gthumb .gplay b { font-family: "Courier New", monospace; font-weight: normal; font-size: 13px; background: rgba(0,0,0,.7); color: #fff; padding: 7px 15px; border-radius: 100px; }
+  .gpiece .gmeta {
+    display: flex; justify-content: space-between;
+    font-family: "Courier New", monospace; font-size: 11px; font-weight: bold; text-transform: uppercase;
+    color: var(--titletext); padding: 8px 10px; border-top: 2px solid var(--border);
+  }
+
+  /* ---------- full-bleed reel player ---------- */
+  #sheet { position: fixed; inset: 0; background: #000; z-index: 100; display: none; }
+  #sheet.show { display: block; }
+  #sheet .frame { position: absolute; inset: 0; width: 100%; height: 100%; display: grid; place-items: center; overflow: hidden; }
+  #sheet .frame iframe { width: 100%; height: 100%; border: 0; }
+  #sheet .frame .phlabel { color: rgba(255,255,255,.9); font-family: "Courier New", monospace; font-size: 12px; text-align: center; line-height: 1.9; text-shadow: 0 1px 4px rgba(0,0,0,.6); padding: 0 24px; }
+  #sheet .scrim {
+    position: absolute; left: 0; right: 0; top: 0;
+    padding: calc(16px + env(safe-area-inset-top,0)) 16px 48px;
+    background: linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,0)); pointer-events: none;
+  }
+  #sheet .sinfo { font-family: "Courier New", monospace; font-size: 12px; color: #fff; line-height: 1.5; max-width: 88%; text-transform: uppercase; font-weight: bold; }
+  #sheet .sinfo .dt { display: block; opacity: .8; font-weight: normal; margin-top: 2px; }
+  #sheet .close {
+    position: absolute; z-index: 3; bottom: calc(18px + env(safe-area-inset-bottom,0)); right: 14px;
+    width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.4);
+    border: 1px solid rgba(255,255,255,.55); color: #fff; font-family: "Courier New", monospace;
+    font-size: 15px; line-height: 1; cursor: pointer; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #sheet .swipehint {
+    position: absolute; left: 0; right: 0; z-index: 3; bottom: calc(86px + env(safe-area-inset-bottom,0));
+    text-align: center; font-family: "Courier New", monospace; font-size: 11px; color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.7); opacity: 0; pointer-events: none;
+  }
+  #sheet.hint .swipehint { animation: hintpulse 2.6s ease; }
+  @keyframes hintpulse { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: .9; transform: translateY(0); } 70% { opacity: .9; } 100% { opacity: 0; } }
+
+  /* ---------- about ---------- */
+  #about { display: none; padding: 16px; background: var(--bg); min-height: 100vh; }
+  #about.show { display: block; }
+  .photo {
+    width: 100%; aspect-ratio: 4/5; max-height: 60vh;
+    background: linear-gradient(165deg,#E8D6B8,#C9A06A 55%,#8A5A33);
+    border: 2px solid var(--border); box-shadow: 3px 3px 0 rgba(0,0,0,.14);
+    display: grid; place-items: center; font-family: "Courier New", monospace; font-size: 12px;
+    color: rgba(40,20,0,.6); text-align: center; margin-bottom: 18px;
+    background-size: cover; background-position: center;
+  }
+  .bio { font-size: 17px; line-height: 1.6; }
+  .bio p + p { margin-top: 14px; }
+  .contact-rows { margin-top: 22px; border-top: 1px solid var(--line); }
+  .contact-rows a {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 4px; border-bottom: 1px solid var(--line);
+    font-family: "Courier New", monospace; font-size: 14px; font-weight: bold;
+    color: var(--accent); text-decoration: none;
+  }
+  .contact-rows a .label { color: var(--ink); opacity: .55; text-transform: uppercase; font-size: 11px; font-weight: normal; }
+  .contact-rows a:active { background: var(--pop); color: #fff; }
+</style>
+</head>
+<body data-mode="light">
+
+<header>
+  <div class="brand">
+    <div class="name">BILL BERG</div>
+    <div class="sub">group executive producer</div>
+  </div>
+  <nav>
+    <a href="#" id="navReel" class="current">Reel</a>
+    <a href="#" id="navAbout">About</a>
+    <button class="modeToggle" id="modeBtn" title="toggle light/dark">◐</button>
+  </nav>
+</header>
+
+<main id="reel">
+  <div class="reel" id="reelGrid"></div>
+</main>
+
+<section id="about">
+  <div class="photo" id="aboutPhoto" style="background-image:url('bill@mobile.jpg');"></div>
+  <div class="bio">
+    <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent his career leading teams that make video work worth watching — from broadcast and branded content to documentary and digital.</p>
+    <p>currently — group executive producer, [company]<br>previously — [studio / agency / network]</p>
+  </div>
+  <div class="contact-rows">
+    <a href="mailto:berg.billy@gmail.com"><span>berg.billy@gmail.com</span><span class="label">email</span></a>
+    <a href="tel:+16512266558"><span>651-226-6558</span><span class="label">phone</span></a>
+    <a href="https://www.linkedin.com/in/williamberg/" target="_blank" rel="noopener"><span>/in/williamberg</span><span class="label">linkedin</span></a>
+    <a href="https://www.instagram.com/uptownbill/" target="_blank" rel="noopener"><span>@uptownbill</span><span class="label">instagram</span></a>
+  </div>
+</section>
+
+<!-- client gallery (choose a piece) -->
+<div id="gsheet">
+  <div class="ghead"><span id="gheadName">client/</span><button class="gclose" id="gcloseBtn">✕ close</button></div>
+  <div class="glist" id="glist"></div>
+</div>
+
+<!-- full-bleed player -->
+<div id="sheet">
+  <div class="frame" id="sheetFrame"></div>
+  <div class="scrim"><div class="sinfo" id="sheetInfo"></div></div>
+  <div class="swipehint">↑ swipe to keep watching</div>
+  <button class="close" id="sheetClose">✕</button>
+</div>
+
+<script>
+/* ============================================================================
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │  YOUR PORTFOLIO — CONTROL PANEL  (this is the only block you edit)        │
+   └─────────────────────────────────────────────────────────────────────────┘
+   Identical structure to the desktop site — keep the two CLIENTS lists in sync
+   (or, in the real build, both pages read from ONE shared file).
+
+   ADD A CLIENT      : copy a { client: ... } block, paste it, change details.
+   ADD A PIECE       : add a { name, dir, co, vertical, horizontal } line in pieces[].
+   DELETE            : remove the block (client) or the line (piece). Mind commas.
+   FIELDS
+     client     : brand name shown on the card
+     art        : placeholder bg — t-night t-sunset t-amber t-horizon t-ocean t-bars t-static t-film
+     name       : piece filename label
+     dir / co   : director + production company. Shows as  dir / co  (e.g. "Jane Smith / Tool")
+                  on the player and under each piece in the gallery. Leave one ""
+                  to show only the other; leave both "" for no credit line.
+     vertical   : the 9:16 Bunny URL (mobile plays this). "" = placeholder.
+     horizontal : the 16:9 Bunny URL (fallback if no vertical).
+   ============================================================================ */
+const CLIENTS = [
+  { client: "BEATS", art: "t-night", pieces: [
+    { name: "beats_Lebron x Nike", dir: "wayne mcclammy", co: "hungry man", vertical: "https://player.mediadelivery.net/embed/684142/31de60bf-5e84-4e5f-9082-60693dfa2f96", horizontal: "https://player.mediadelivery.net/embed/684142/a6282114-8073-4608-ad39-ed7a84c56d8f" },
+    { name: "beats_the predicament", dir: "jim jenkins", co: "o positive", vertical: "https://player.mediadelivery.net/embed/684142/ad377fb2-53e0-4efa-af8f-67c45635b418", horizontal: "https://player.mediadelivery.net/embed/684142/15b29983-ff1b-4b7f-be7c-8e117b2f94b2" },
+    { name: "beats_ricallen", dir: "vincent peone", co: "art class", vertical: "https://player.mediadelivery.net/embed/684142/22329e71-77a8-4a2a-aedb-741a95a80479", horizontal: "https://player.mediadelivery.net/embed/684142/38341263-95cb-4cb7-b693-46385d956c72" },
+  ]},
+  { client: "LUME", art: "t-sunset", pieces: [
+    { name: "lume_downthere", dir: "chubbynida", co: "pocko", vertical: "https://player.mediadelivery.net/embed/684142/8d0a883a-8912-4703-8d7d-5fe66bcf62d6", horizontal: "https://player.mediadelivery.net/embed/684142/586e9e93-fe6a-45a1-8028-c1dca92bfc53" },
+    { name: "lume_randombodychanges", dir: "sawako kabuki", co: "pocko", vertical: "https://player.mediadelivery.net/embed/684142/63c7b6d3-7417-4ddf-b81c-98bb51cdc16f", horizontal: "https://player.mediadelivery.net/embed/684142/de8f9ebb-c645-4b5c-b7d8-c969ede4384c" },
+    { name: "lume_underthetatas", dir: "simon land rein", co: "pocko", vertical: "https://player.mediadelivery.net/embed/684142/f94283f4-ba03-4112-99e3-e0d926aaddf4", horizontal: "https://player.mediadelivery.net/embed/684142/3d9aebb8-fd43-496a-a7c0-1f02bd9cc7a1" },
+  ]},
+  { client: "POPPI", art: "t-amber", pieces: [
+    { name: "poppi_superbowl", dir: "aiden zamiri", co: "objectanimal", vertical: "https://player.mediadelivery.net/embed/684142/1b4ea296-41a6-4e59-aa06-30d1015b623a", horizontal: "https://player.mediadelivery.net/embed/684142/68fc6ddd-3ac0-4225-be54-b8578968bebb" },
+  ]},
+  { client: "UNDER ARMOUR", art: "t-static", pieces: [
+    { name: "underarmour_ruleyourself", dir: "wally pfister", co: "reset", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/921cdf78-f4ee-4d49-b0d7-62b74f90c20d" },
+    { name: "underarmour_brady", dir: "wally pfister", co: "reset", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/dd4b5d80-a4d0-4f1a-ba27-4e6f654caa26" },
+    { name: "underarmour_curry", dir: "wally pfister", co: "reset", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/bce3b098-5e25-4ef5-9c36-54fe066f08da" },
+    { name: "underarmour_spieth", dir: "wally pfister", co: "reset", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/3bad9dc3-a6b3-47d6-93fb-3f7ab79cf120" },
+  ]},
+  { client: "HONEY MAID", art: "t-film", pieces: [
+    { name: "honeymaid_anthem", dir: "martin+lindsay", co: "furlined", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/1d1e2b61-1a35-48a2-93aa-f8c3337f4a0a" },
+    { name: "honeymaid_lovesculpture", dir: "alex cullen", co: "resonant pictures", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/28f1ca4d-c36a-4a71-8029-371c99888025" },
+  ]},
+  { client: "MANDO", art: "t-horizon", pieces: [
+    { name: "mando_dontmaskit", dir: "jasper cable-alexander", co: "drool", vertical: "https://player.mediadelivery.net/embed/684142/2a041159-2a19-46d7-8432-2cc11260bee4", horizontal: "https://player.mediadelivery.net/embed/684142/ea161fae-e01d-4561-a1e4-241153706df6" },
+  ]},
+  { client: "INTUIT", art: "t-ocean", pieces: [
+    { name: "intuit_superheroes", dir: "harry calbom", co: "intuit", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/c3654e8f-4c1e-42c2-a2d7-5cdd0345a521" },
+  ]},
+  { client: "FLAMINGO", art: "t-bars", pieces: [
+    { name: "flamingo_wildride", dir: "eoin glastier", co: "stink", vertical: "https://player.mediadelivery.net/embed/684142/e16bb03f-96c2-457c-867f-e8aba7d8ef26", horizontal: "https://player.mediadelivery.net/embed/684142/86b48866-b61d-4ed3-a548-c032da60c6f2" },
+  ]},
+  { client: "JOCKEY", art: "t-night", pieces: [
+    { name: "jockey_supportinggreatness", dir: "guy shelmerdine", co: "smuggler", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/3b395254-9295-4e4f-8680-ef1e312d31fe" },
+  ]},
+  { client: "TOYOTA", art: "t-sunset", pieces: [
+    { name: "toyota_fueledbyBS", dir: "morgan spurlock", co: "warrior poet", vertical: "", horizontal: "https://player.mediadelivery.net/embed/684142/511bc265-e8bb-4b53-80bf-498ce02fa1c5" },
+  ]},
+];
+
+/* ---------- build the client feed ---------- */
+const grid = document.getElementById("reelGrid");
+
+/* flat list of every piece across all clients, in order — the continuous reel */
+const FEED = [];
+CLIENTS.forEach((cl, ci) => cl.pieces.forEach((p, pi) => FEED.push({ ci, pi, cl, p })));
+
+/* Bunny: build the animated preview URL from a stored embed URL.
+   Your library's pull zone — if you ever move libraries, update this one line. */
+const BUNNY_PULL = "https://vz-ea36faae-e94.b-cdn.net";
+function bunnyId(u) { return u ? u.split("?")[0].split("/").pop() : ""; }
+function previewURL(u) { const id = bunnyId(u); return id ? `${BUNNY_PULL}/${id}/preview.webp` : ""; }
+function credit(p) { return [p.dir, p.co].filter(Boolean).join(" / "); }
+
+CLIENTS.forEach((cl, ci) => {
+  const folder = cl.client.toLowerCase().replace(/ /g,"_") + "/";
+  const hero = cl.pieces[0];
+  const prev = previewURL(hero.vertical || hero.horizontal);   // feed card loops the first piece
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  tile.innerHTML = `
+    <div class="bar"><span class="fn">${folder}</span></div>
+    <div class="thumb ${cl.art}" data-ci="${ci}">
+      <img class="ph" src="${prev}" alt="" loading="lazy"
+           onload="this.classList.add('loaded')" onerror="this.style.display='none'">
+      <div class="cover"><span class="clientname">${cl.client}</span></div>
+    </div>
+    <div class="meta"><span></span><span></span></div>`;
+  grid.appendChild(tile);
+  tile.querySelector(".thumb").addEventListener("click", () => openClient(ci));
+});
+
+/* ---------- client gallery (choose a piece) ---------- */
+const gsheet = document.getElementById("gsheet");
+const glist = document.getElementById("glist");
+let activeClient = null;
+
+function openClient(ci) {
+  const cl = CLIENTS[ci];
+  activeClient = ci;
+  if (cl.pieces.length === 1) { openPlayer(ci, 0); return; }   // single piece → play straight away
+  document.getElementById("gheadName").textContent = cl.client.toLowerCase().replace(/ /g,"_") + "/";
+  glist.innerHTML = cl.pieces.map((p, pi) => `
+    <button class="gpiece" data-pi="${pi}">
+      <div class="gthumb ${cl.art}">
+        <img class="gprev" src="${previewURL(p.vertical || p.horizontal)}" alt="" loading="lazy"
+             onload="this.classList.add('loaded')" onerror="this.style.display='none'">
+        <div class="gscan"></div><div class="gplay"><b>▶ play</b></div>
+      </div>
+      <div class="gmeta"><span>${p.name}</span><span>${credit(p)}</span></div>
+    </button>`).join("");
+  glist.querySelectorAll(".gpiece").forEach(btn =>
+    btn.addEventListener("click", () => openPlayer(ci, +btn.dataset.pi)));
+  gsheet.classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+document.getElementById("gcloseBtn").addEventListener("click", () => {
+  gsheet.classList.remove("show");
+  document.body.style.overflow = "";
+});
+
+/* ---------- full-bleed player + continuous swipe ---------- */
+const sheet = document.getElementById("sheet");
+let feedPos = 0, swipeHinted = false;
+
+function feedIndexOf(ci, pi) {
+  return FEED.findIndex(f => f.ci === ci && f.pi === pi);
+}
+
+function loadFeed(pos) {
+  feedPos = (pos + FEED.length) % FEED.length;   // wrap → endless loop
+  const { cl, p } = FEED[feedPos];
+  const url = p.vertical || p.horizontal;
+  const vertical = !!p.vertical;
+  const cr = credit(p);
+  document.getElementById("sheetInfo").innerHTML =
+    `<span>${cl.client} — ${p.name}</span>${cr ? `&nbsp; <span class="dt">${cr}</span>` : ""}`;
+  const f = document.getElementById("sheetFrame");
+  f.className = "frame " + cl.art;
+  f.innerHTML = url
+    ? `<iframe src="${url}?autoplay=true&loop=true&preload=true&responsive=true" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;fullscreen" allowfullscreen></iframe>`
+    : `<div class="phlabel">NOW PLAYING — ${p.name}<br><span style="opacity:.6">(${vertical ? "vertical" : "16:9"} embed plays full-bleed here)</span></div>`;
+}
+
+function openPlayer(ci, pi) {
+  loadFeed(feedIndexOf(ci, pi));
+  sheet.classList.add("show");
+  document.body.style.overflow = "hidden";
+  if (!swipeHinted) {
+    sheet.classList.add("hint"); setTimeout(() => sheet.classList.remove("hint"), 2600); swipeHinted = true;
+  }
+}
+function closeSheet() {
+  sheet.classList.remove("show");
+  const f = document.getElementById("sheetFrame");
+  f.innerHTML = ""; f.className = "frame"; f.style.cssText = "";
+  if (!gsheet.classList.contains("show")) document.body.style.overflow = "";
+}
+document.getElementById("sheetClose").addEventListener("click", closeSheet);
+
+/* swipe up/down moves through the ENTIRE feed, looping endlessly */
+let animating = false;
+function slideTo(dir) {
+  if (animating || FEED.length < 2) return;
+  animating = true;
+  const f = document.getElementById("sheetFrame");
+  f.style.transition = "transform .2s ease, opacity .2s ease";
+  f.style.transform = `translateY(${dir > 0 ? "-9%" : "9%"})`;
+  f.style.opacity = "0";
+  setTimeout(() => {
+    loadFeed(feedPos + dir);
+    f.style.transition = "none";
+    f.style.transform = `translateY(${dir > 0 ? "9%" : "-9%"})`;
+    f.style.opacity = "0";
+    void f.offsetWidth;
+    f.style.transition = "transform .2s ease, opacity .2s ease";
+    f.style.transform = "translateY(0)"; f.style.opacity = "1";
+    setTimeout(() => { animating = false; }, 200);
+  }, 200);
+}
+let sy = null, sx = null;
+sheet.addEventListener("touchstart", e => { sy = e.touches[0].clientY; sx = e.touches[0].clientX; }, { passive: true });
+sheet.addEventListener("touchend", e => {
+  if (sy === null) return;
+  const dy = e.changedTouches[0].clientY - sy, dx = e.changedTouches[0].clientX - sx;
+  if (Math.abs(dy) > 55 && Math.abs(dy) > Math.abs(dx)) slideTo(dy < 0 ? 1 : -1);
+  sy = sx = null;
+});
+let psy = null;
+sheet.addEventListener("pointerdown", e => { if (e.pointerType === "mouse") psy = e.clientY; });
+sheet.addEventListener("pointerup", e => { if (psy === null) return; const dy = e.clientY - psy; if (Math.abs(dy) > 55) slideTo(dy < 0 ? 1 : -1); psy = null; });
+addEventListener("keydown", e => {
+  if (!sheet.classList.contains("show")) return;
+  if (e.key === "ArrowUp") slideTo(-1);
+  else if (e.key === "ArrowDown") slideTo(1);
+  else if (e.key === "Escape") closeSheet();
+});
+
+/* ---------- nav ---------- */
+const reel = document.getElementById("reel"), about = document.getElementById("about");
+function show(p) {
+  reel.style.display = p === "reel" ? "" : "none";
+  about.classList.toggle("show", p === "about");
+  document.getElementById("navReel").classList.toggle("current", p === "reel");
+  document.getElementById("navAbout").classList.toggle("current", p === "about");
+}
+document.getElementById("navReel").addEventListener("click", e => { e.preventDefault(); show("reel"); });
+document.getElementById("navAbout").addEventListener("click", e => { e.preventDefault(); show("about"); });
+
+/* ---------- mode toggle ---------- */
+const modeBtn = document.getElementById("modeBtn");
+modeBtn.addEventListener("click", () => {
+  const dark = document.body.dataset.mode !== "dark";
+  document.body.dataset.mode = dark ? "dark" : "light";
+  modeBtn.textContent = dark ? "◑" : "◐";
+});
+</script>
+</body>
+</html>
