@@ -448,18 +448,23 @@ function updateScrim(pos) {
     `<span>${cl.client} — ${p.name}</span>${cr ? `<span class="dt">${cr}</span>` : ""}`;
 }
 
-function playCur() {
-  [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
-  if (!sCur) return;
-  sCur.slide.classList.remove("ispaused");
-  sCur.video.muted = globalMuted;
-  const tryPlay = sCur.video.play();
-  if (tryPlay && tryPlay.catch) {
-    tryPlay.catch(() => {                 // autoplay-with-sound blocked → mute & retry
-      globalMuted = true; updateMuteBtn();
-      sCur.video.muted = true; sCur.video.play().catch(() => {});
+function playSlide(s) {
+  if (!s) return;
+  s.slide.classList.remove("ispaused");
+  s.video.muted = globalMuted;
+  const pr = s.video.play();
+  if (pr && pr.catch) {
+    pr.catch(() => {
+      // Couldn't start with sound this exact instant — play muted just for this
+      // attempt, but KEEP the user's sound choice so the next clip tries sound again.
+      try { s.video.muted = true; s.video.play().catch(() => {}); } catch (e) {}
     });
   }
+}
+
+function playCur() {
+  [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
+  playSlide(sCur);
 }
 
 function updateMuteBtn() { muteBtn.textContent = globalMuted ? "🔇" : "🔊"; }
@@ -492,6 +497,12 @@ document.getElementById("sheetClose").addEventListener("click", closeSheet);
 function slideTo(dir) {
   if (animating || FEED.length < 2) return;
   animating = true;
+  /* Start the incoming clip's sound NOW, inside the swipe gesture — browsers only
+     permit audio that's tied directly to the touch, so this must not wait for the
+     animation to finish. */
+  const incoming = dir === 1 ? sNext : sPrev;
+  if (sCur) { try { sCur.video.pause(); } catch (e) {} }   // silence the outgoing immediately
+  playSlide(incoming);
   [sPrev, sCur, sNext].forEach(s => { if (s) setRel(s, s.rel - dir, true); });
   setTimeout(() => {
     feedPos = wrap(feedPos + dir);
@@ -505,8 +516,8 @@ function slideTo(dir) {
       sPrev = buildSlide(feedPos - 1, -1);
     }
     setRel(sPrev, -1, false); setRel(sCur, 0, false); setRel(sNext, 1, false);
+    [sPrev, sNext].forEach(s => { if (s) { try { s.video.pause(); } catch (e) {} } });
     updateScrim(feedPos);
-    playCur();
     animating = false;
   }, 290);
 }
