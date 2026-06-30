@@ -990,14 +990,24 @@ function gridMetrics() {
   return slots;
 }
 
-/* grid tile width — big tiles; the grid scrolls vertically if they don't all fit */
+/* size grid tiles to fill the screen without scrolling */
 function fitGridW() {
-  const gapX = 24;
+  const gapX = 24, gapY = 24;
   const availW = innerWidth - PAD * 2;
-  if (innerWidth <= 640) return Math.min(availW, 520);              // narrow → ~1 big tile per row
-  const target = Math.max(380, Math.min(innerWidth * 0.30, 620));  // desired tile width
-  const cols = Math.max(1, Math.round(availW / (target + gapX)));
-  return Math.floor((availW - gapX * (cols - 1)) / cols);
+  const availH = innerHeight - TOP - BOT - 24;
+  const N = cards.length || 1;
+  let best = 220;
+  for (let cols = 1; cols <= N; cols++) {
+    const rows = Math.ceil(N / cols);
+    let w = (availW - gapX * (cols - 1)) / cols;
+    const totalH = rows * (w * 9/16 + 48) + gapY * (rows - 1);
+    if (totalH > availH) {                      // too tall → shrink so the rows fit the height
+      const hMax = (availH - gapY * (rows - 1)) / rows;
+      w = Math.min(w, (hMax - 48) * 16/9);
+    }
+    if (w > best) best = w;                      // keep the column count that yields the biggest fitting tile
+  }
+  return Math.round(best);
 }
 
 function layoutGrid(skip) {
