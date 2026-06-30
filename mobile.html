@@ -144,6 +144,7 @@
   #sheet .slide video {
     width: 100%; height: 100%; object-fit: contain; background: transparent; position: relative; z-index: 1;
   }
+  #sheet .slide.vert video { object-fit: cover; }   /* vertical clips fill the screen, no letterbox band */
   #sheet .slide .poster {
     position: absolute; inset: 0; background-size: cover; background-position: center;
     filter: blur(18px) brightness(.5); transform: scale(1.1);
@@ -385,6 +386,7 @@ const sheet = document.getElementById("sheet");
 const deck = document.getElementById("deck");
 const muteBtn = document.getElementById("muteBtn");
 let feedPos = 0, swipeHinted = false, globalMuted = false, animating = false;
+let userPaused = false, closing = false;   // self-heal: distinguish intended pauses from iOS auto-pauses
 let sPrev = null, sCur = null, sNext = null;
 
 function feedIndexOf(ci, pi) { return FEED.findIndex(f => f.ci === ci && f.pi === pi); }
@@ -393,12 +395,13 @@ function wrap(i) { return (i % FEED.length + FEED.length) % FEED.length; }
 function buildSlide(idx, rel) {
   idx = wrap(idx);
   const item = FEED[idx];
+  const isVert = !!item.p.vertical;
   const src = item.p.vertical || item.p.horizontal;
   const hls = hlsURL(src);
   const poster = previewURL(src) || posterURL(src);
 
   const slide = document.createElement("div");
-  slide.className = "slide loading";
+  slide.className = "slide loading" + (isVert ? " vert" : "");
   slide.style.transform = `translateY(${rel * 100}%)`;
   slide.innerHTML = `<div class="poster" style="background-image:url('${poster}')"></div><div class="spin"></div><div class="paused"></div>`;
 
@@ -409,6 +412,16 @@ function buildSlide(idx, rel) {
   video.addEventListener("loadeddata", () => slide.classList.remove("loading"));
   video.addEventListener("playing",    () => slide.classList.remove("loading"));
   video.addEventListener("waiting",    () => slide.classList.add("loading"));
+  // self-heal: if the clip you're watching gets auto-paused by the OS, resume it
+  video.addEventListener("pause", () => {
+    if (closing || userPaused) return;
+    if (!sCur || sCur.video !== video) return;          // only the focused clip
+    setTimeout(() => {
+      if (!closing && !userPaused && sCur && sCur.video === video && sheet.classList.contains("show")) {
+        video.play().catch(() => {});
+      }
+    }, 40);
+  });
   slide.appendChild(video);
   deck.appendChild(slide);
 
@@ -462,6 +475,7 @@ function warmNeighbours() {
 function playCur() {
   warmNeighbours();
   if (!sCur) return;
+  userPaused = false;
   sCur.slide.classList.remove("ispaused");
   try { sCur.video.currentTime = 0; } catch (e) {}
   sCur.video.muted = globalMuted;
@@ -471,6 +485,7 @@ function playCur() {
 function updateMuteBtn() { muteBtn.textContent = globalMuted ? "🔇" : "🔊"; }
 
 function openPlayer(ci, pi) {
+  closing = false; userPaused = false;
   feedPos = feedIndexOf(ci, pi);
   destroySlide(sPrev); destroySlide(sCur); destroySlide(sNext);
   deck.innerHTML = "";
@@ -486,6 +501,7 @@ function openPlayer(ci, pi) {
 }
 
 function closeSheet() {
+  closing = true;
   sheet.classList.remove("show");
   destroySlide(sPrev); destroySlide(sCur); destroySlide(sNext);
   sPrev = sCur = sNext = null;
@@ -505,6 +521,7 @@ function slideTo(dir) {
      lets the browser reliably turn its sound on. */
   if (outgoing) { try { outgoing.video.muted = true; } catch (e) {} }
   if (incoming) {
+    userPaused = false;
     incoming.slide.classList.remove("ispaused");
     try { incoming.video.currentTime = 0; } catch (e) {}
     incoming.video.muted = globalMuted;
@@ -533,8 +550,8 @@ function slideTo(dir) {
 
 function togglePlay() {
   if (!sCur) return;
-  if (sCur.video.paused) { sCur.video.play().catch(() => {}); sCur.slide.classList.remove("ispaused"); }
-  else { sCur.video.pause(); sCur.slide.classList.add("ispaused"); }
+  if (sCur.video.paused) { userPaused = false; sCur.video.play().catch(() => {}); sCur.slide.classList.remove("ispaused"); }
+  else { userPaused = true; sCur.video.pause(); sCur.slide.classList.add("ispaused"); }
 }
 
 muteBtn.addEventListener("click", e => {
