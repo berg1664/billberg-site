@@ -1044,14 +1044,11 @@ function enterDrift() {
   stage.style.height = "";
   window.scrollTo(0, 0);
   cards.forEach(c => {
-    c.tx = c.ty = null;
-    const h = c.w * 9/16 + 48;
-    c.x = rand(PAD, Math.max(PAD, innerWidth - c.w - PAD));   // begin on-screen, not flying in from the grid
-    c.y = rand(TOP, Math.max(TOP, innerHeight - h - BOT));
-    c.vx = rand(-0.41, 0.41) || 0.27;
-    c.vy = rand(-0.41, 0.41) || 0.27;
+    c.tx = c.ty = null;     // stop snapping to grid slots — stay exactly where it sits
+    c.tw = c.w;             // keep current size (no resize jump)
+    c.vx = rand(-0.34, 0.34) || 0.22;   // just begin a gentle float from here
+    c.vy = rand(-0.34, 0.34) || 0.22;
   });
-  assignSizes(false);   // ease to the (moderate) drift size
   statement.classList.remove("hidden");
   gridBtn.textContent = "⊞ snap to grid";
   statusEl.textContent = TOTAL_PIECES + " pieces · " + cards.length + " clients in orbit";

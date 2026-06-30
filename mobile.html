@@ -133,7 +133,7 @@
   }
 
   /* ---------- full-bleed reel player ---------- */
-  #sheet { position: fixed; inset: 0; background: #000; z-index: 100; display: none; overscroll-behavior: none; }
+  #sheet { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; background: #000; z-index: 100; display: none; overscroll-behavior: none; }
   #sheet.show { display: block; }
   #sheet .deck { position: absolute; inset: 0; overflow: hidden; }
   #sheet .slide {
@@ -403,7 +403,7 @@ function buildSlide(idx, rel) {
   const slide = document.createElement("div");
   slide.className = "slide loading" + (isVert ? " vert" : "");
   slide.style.transform = `translateY(${rel * 100}%)`;
-  slide.innerHTML = `<div class="poster" style="background-image:url('${poster}')"></div><div class="spin"></div><div class="paused"></div>`;
+  slide.innerHTML = `<div class="spin"></div><div class="paused"></div>`;   // solid-black backdrop (no animated blur)
 
   const video = document.createElement("video");
   video.playsInline = true;
@@ -436,8 +436,7 @@ function buildSlide(idx, rel) {
       video.src = hls;
     }
   }
-  video.muted = true;
-  video.play().catch(() => {});   // warm up immediately (muted) so sound can start instantly on a swipe
+  video.muted = true;   // preloads via preload="auto"; only current + next actually play (eases iOS limits)
   return { idx, rel, slide, video, hls: hlsInst, item };
 }
 
@@ -463,23 +462,22 @@ function updateScrim(pos) {
     `<span>${cl.client} — ${p.name}</span>${cr ? `<span class="dt">${cr}</span>` : ""}`;
 }
 
-/* Keep the neighbouring clips playing but muted, so they stay buffered and "warm".
-   A swipe then only has to un-mute the one you land on — which browsers allow
-   reliably — instead of cold-starting playback. */
-function warmNeighbours() {
-  [sPrev, sNext].forEach(s => {
-    if (s) { try { s.video.muted = true; if (s.video.paused) s.video.play().catch(() => {}); } catch (e) {} }
-  });
+/* Keep ONLY the next clip warm (playing muted) so a forward swipe is instant.
+   The previous clip stays preloaded but paused, so iOS only ever juggles two
+   videos at once — which is what stops it auto-pausing the one you're watching. */
+function warmNext() {
+  if (sNext) { try { sNext.video.muted = true; if (sNext.video.paused) sNext.video.play().catch(() => {}); } catch (e) {} }
+  if (sPrev) { try { sPrev.video.pause(); } catch (e) {} }
 }
 
 function playCur() {
-  warmNeighbours();
   if (!sCur) return;
   userPaused = false;
   sCur.slide.classList.remove("ispaused");
   try { sCur.video.currentTime = 0; } catch (e) {}
   sCur.video.muted = globalMuted;
   if (sCur.video.paused) { const p = sCur.video.play(); if (p && p.catch) p.catch(() => {}); }
+  warmNext();
 }
 
 function updateMuteBtn() { muteBtn.textContent = globalMuted ? "🔇" : "🔊"; }
@@ -540,7 +538,7 @@ function slideTo(dir) {
       sPrev = buildSlide(feedPos - 1, -1);
     }
     setRel(sPrev, -1, false); setRel(sCur, 0, false); setRel(sNext, 1, false);
-    warmNeighbours();                  // keep the new neighbours buffered & muted
+    warmNext();                        // keep next warm; prev preloaded-but-paused
     sCur.video.muted = globalMuted;    // reaffirm sound on the current clip
     if (sCur.video.paused) sCur.video.play().catch(() => {});
     updateScrim(feedPos);
