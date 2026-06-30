@@ -20,15 +20,17 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
+  html { height: 100%; }
 
   body {
     background: var(--bg);
     color: var(--ink);
     font-family: "Times New Roman", Times, serif;
-    overflow: hidden;
+    min-height: 100%;
+    overflow-x: hidden;
     transition: background-color .35s ease;
   }
+  body.adrift { height: 100%; overflow: hidden; }
   /* ---------- overlay layer (film grain in dark mode) ---------- */
   body::before {
     content: "";
@@ -90,6 +92,8 @@
     padding: 18px 28px;
     z-index: 100;
     pointer-events: none;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
   }
   nav .wordmark { pointer-events: auto; display: flex; align-items: baseline; gap: 12px; }
   nav .wordmark .sub {
@@ -150,11 +154,12 @@
 
   /* ---------- WINDOWS ---------- */
   #stage {
-    position: fixed;
-    inset: 0;
+    position: relative;
+    width: 100%;
     z-index: 10;
     pointer-events: none;
   }
+  #stage.adrift { position: fixed; inset: 0; width: auto; }
   .card {
     position: absolute;
     width: 250px;
@@ -649,9 +654,9 @@ const statusEl = document.getElementById("status");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const BASE_W = () => {
-  if (innerWidth <= 640) return 240;                              // narrow window → grid tiles
-  // desktop: big by default and scales with the screen, so large monitors fill out
-  return Math.max(340, Math.min(innerWidth * 0.32, 680));
+  if (innerWidth <= 640) return 240;
+  // drift (floating) window size — kept moderate so "set adrift" doesn't balloon
+  return Math.max(300, Math.min(innerWidth * 0.22, 440));
 };
 const PAD = 10, TOP = 64, BOT = 48;
 const MAX_SPEED = 1.8;
@@ -850,7 +855,8 @@ function placeExpanded(c) {
   c.tw = targetW;
   c.tx = (innerWidth - targetW) / 2;
   const estH = targetW * 9/16 + chrome;
-  c.ty = Math.max(TOP, (innerHeight - estH) / 2);
+  const sy = window.scrollY || document.documentElement.scrollTop || 0;
+  c.ty = sy + Math.max(TOP, (innerHeight - estH) / 2);
 }
 
 /* credit line: "director / production company" (skips an empty half cleanly) */
@@ -906,6 +912,8 @@ function playPiece(c, idx) {
   statusEl.textContent = "now playing — " + piece.name;
 }
 
+function lockScroll(on) { document.documentElement.style.overflow = on ? "hidden" : ""; }
+
 function expand(c) {
   if (expandedCard) collapse(expandedCard);
   expandedCard = c;
@@ -914,6 +922,7 @@ function expand(c) {
   c.el.classList.add("expanded", "front");
   backdrop.classList.add("show");
   statement.classList.add("hidden");
+  lockScroll(true);
   placeExpanded(c);
   if (c.n === 1) playPiece(c, 0);   // single-piece clients play straight away
   else showGallery(c);
@@ -926,13 +935,18 @@ function collapse(c) {
   c.view = "cover";
   c.tbname.textContent = c.cl.client.toLowerCase().replace(/ /g,"_") + "/";
   backdrop.classList.remove("show");
-  if (globalMode === "drift") statement.classList.remove("hidden");
-  c.tw = c.homeW || BASE_W();
-  const h = c.tw * 9/16 + 48;
-  c.tx = Math.max(PAD, Math.min(innerWidth - c.tw - PAD, c.homeX));
-  c.ty = Math.max(TOP, Math.min(innerHeight - h - BOT, c.homeY));
-  c.returning = true;
+  lockScroll(false);
   expandedCard = null;
+  if (globalMode === "grid") {
+    layoutGrid();                       // glide back into its grid slot
+  } else {
+    statement.classList.remove("hidden");
+    c.tw = c.homeW || BASE_W();
+    const h = c.tw * 9/16 + 48;
+    c.tx = Math.max(PAD, Math.min(innerWidth - c.tw - PAD, c.homeX));
+    c.ty = Math.max(TOP, Math.min(innerHeight - h - BOT, c.homeY));
+    c.returning = true;
+  }
   statusEl.textContent = TOTAL_PIECES + " pieces · " + CLIENTS.length + (globalMode === "drift" ? " clients in orbit" : " clients on the grid");
 }
 backdrop.addEventListener("click", () => expandedCard && collapse(expandedCard));
@@ -960,7 +974,8 @@ function gridMetrics() {
   if (row.length) rows.push(row);
   // position rows, centered
   const totalH = rows.reduce((s, r) => s + Math.max(...r.map(i => i.h)), 0) + gapY * (rows.length - 1);
-  let y = Math.max(TOP + 8, (innerHeight - totalH) / 2);
+  // center when it fits the viewport; otherwise top-align and let the page scroll
+  let y = totalH <= (innerHeight - TOP - BOT - 16) ? Math.max(TOP + 8, (innerHeight - totalH) / 2) : (TOP + 16);
   const slots = [];
   for (const r of rows) {
     const rw = r.reduce((s, i) => s + i.w, 0) + gapX * (r.length - 1);
@@ -975,29 +990,21 @@ function gridMetrics() {
   return slots;
 }
 
-/* size grid tiles so the whole set fills the screen without scrolling */
+/* grid tile width — big tiles; the grid scrolls vertically if they don't all fit */
 function fitGridW() {
-  const gapX = 24, gapY = 24;
+  const gapX = 24;
   const availW = innerWidth - PAD * 2;
-  const availH = innerHeight - TOP - BOT - 24;
-  const N = cards.length || 1;
-  let best = 220;
-  for (let cols = 1; cols <= N; cols++) {
-    const rows = Math.ceil(N / cols);
-    let w = (availW - gapX * (cols - 1)) / cols;
-    const totalH = rows * (w * 9/16 + 48) + gapY * (rows - 1);
-    if (totalH > availH) {                      // too tall → shrink so the rows fit the height
-      const hMax = (availH - gapY * (rows - 1)) / rows;
-      w = Math.min(w, (hMax - 48) * 16/9);
-    }
-    if (w > best) best = w;                      // keep the column count that yields the biggest tile
-  }
-  return Math.round(best);
+  if (innerWidth <= 640) return Math.min(availW, 520);              // narrow → ~1 big tile per row
+  const target = Math.max(380, Math.min(innerWidth * 0.30, 620));  // desired tile width
+  const cols = Math.max(1, Math.round(availW / (target + gapX)));
+  return Math.floor((availW - gapX * (cols - 1)) / cols);
 }
 
 function layoutGrid(skip) {
   if (!gridOrder.length) gridOrder = [...cards];
+  let maxB = 0;
   for (const s of gridMetrics()) {
+    maxB = Math.max(maxB, s.y + s.h);
     const c = s.c;
     if (c === expandedCard || c === skip) continue;
     c.tw = s.w;
@@ -1005,12 +1012,15 @@ function layoutGrid(skip) {
     c.ty = s.y;
     c.vx = c.vy = 0;
   }
+  if (globalMode === "grid") stage.style.height = Math.max(innerHeight, maxB + BOT + 16) + "px";
 }
 
 function enterGrid() {
   globalMode = "grid";
+  document.body.classList.remove("adrift");
+  stage.classList.remove("adrift");
   const gw = fitGridW();
-  cards.forEach(c => c.gw = gw);   // uniform, sized to fill the screen without scrolling
+  cards.forEach(c => c.gw = gw);   // big uniform tiles; the grid scrolls if they don't all fit
   gridOrder = [...cards];
   layoutGrid();
   statement.classList.add("hidden");
@@ -1019,12 +1029,19 @@ function enterGrid() {
 }
 function enterDrift() {
   globalMode = "drift";
+  document.body.classList.add("adrift");
+  stage.classList.add("adrift");
+  stage.style.height = "";
+  window.scrollTo(0, 0);
   cards.forEach(c => {
     c.tx = c.ty = null;
+    const h = c.w * 9/16 + 48;
+    c.x = rand(PAD, Math.max(PAD, innerWidth - c.w - PAD));   // begin on-screen, not flying in from the grid
+    c.y = rand(TOP, Math.max(TOP, innerHeight - h - BOT));
     c.vx = rand(-0.41, 0.41) || 0.27;
     c.vy = rand(-0.41, 0.41) || 0.27;
   });
-  assignSizes(false);   // re-size by piece count each drift
+  assignSizes(false);   // ease to the (moderate) drift size
   statement.classList.remove("hidden");
   gridBtn.textContent = "⊞ snap to grid";
   statusEl.textContent = TOTAL_PIECES + " pieces · " + cards.length + " clients in orbit";
