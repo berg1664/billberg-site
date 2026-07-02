@@ -212,7 +212,7 @@
 <body data-mode="light">
 
 <header>
-  <div class="brand">
+  <div class="brand" id="home" title="back to reel" style="cursor:pointer">
     <div class="name">BILL BERG</div>
     <div class="sub">group executive producer</div>
   </div>
@@ -230,7 +230,7 @@
 <section id="about">
   <div class="photo" id="aboutPhoto" style="background-image:url('bill@mobile.jpg');"></div>
   <div class="bio">
-    <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent over 15 years producing award-winning work for iconic and influential agencies. He's produced projects of nearly all shapes and sizes from the miniscule to the gargantuan. Bill has led teams and departments and simultaneously values quality creative output with the ability to have a laugh while doing it.</p>
+    <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent over 15 years producing award-winning work for iconic and influential agencies. He's produced projects of nearly all shapes and sizes from the miniscule to the gargantuan. Bill has led teams and departments and simultaneously values exceptional creative output and the ability to have a laugh while doing it.</p>
     <p>Bill is finding it strange talking in the 3rd person.</p>
     <p>currently — group executive producer, MIRIMAR<br>previously — Droga5, Johannes Leonardo, Preacher, Colle+Mcvoy, Grocery store bagger.</p>
   </div>
@@ -603,6 +603,7 @@ function show(p) {
 }
 document.getElementById("navReel").addEventListener("click", e => { e.preventDefault(); show("reel"); });
 document.getElementById("navAbout").addEventListener("click", e => { e.preventDefault(); show("about"); });
+document.getElementById("home").addEventListener("click", () => show("reel"));
 
 /* ---------- mode toggle ---------- */
 const modeBtn = document.getElementById("modeBtn");

@@ -95,7 +95,7 @@
     background: var(--bg);
     border-bottom: 1px solid var(--line);
   }
-  nav .wordmark { pointer-events: auto; display: flex; align-items: baseline; gap: 12px; }
+  nav .wordmark { pointer-events: auto; display: flex; align-items: baseline; gap: 12px; cursor: pointer; }
   nav .wordmark .sub {
     font-family: "Courier New", Courier, monospace;
     font-size: 13px;
@@ -509,7 +509,7 @@
 <body data-bg="drudge" data-mode="light">
 
 <nav>
-  <div class="wordmark"><span class="name">BILL BERG</span> <span class="sub">group executive producer</span></div>
+  <div class="wordmark" id="home" title="back to reel"><span class="name">BILL BERG</span> <span class="sub">group executive producer</span></div>
   <ul>
     <li><a href="#" id="navReel" class="current">Reel</a></li>
     <li><a href="#" id="navAbout">About</a></li>
@@ -526,7 +526,7 @@
   <div class="biobox" id="biobox">
     <div class="titlebar"><span>about.txt</span></div>
     <div class="bio-body">
-      <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent over 15 years producing award-winning work for iconic and influential agencies. He's produced projects of nearly all shapes and sizes from the miniscule to the gargantuan. Bill has led teams and departments and simultaneously values quality creative output with the ability to have a laugh while doing it.</p>
+      <p><b>Bill Berg</b> is a group executive producer based in Minneapolis. He has spent over 15 years producing award-winning work for iconic and influential agencies. He's produced projects of nearly all shapes and sizes from the miniscule to the gargantuan. Bill has led teams and departments and simultaneously values exceptional creative output and the ability to have a laugh while doing it.</p>
       <p>Bill is finding it strange talking in the 3rd person.</p>
       <p>currently — group executive producer, MIRIMAR<br>
       previously — Droga5, Johannes Leonardo, Preacher, Colle+Mcvoy, Grocery store bagger.</p>
@@ -1284,6 +1284,7 @@ function goto(p) {
 }
 document.getElementById("navReel").addEventListener("click", e => { e.preventDefault(); goto("reel"); });
 document.getElementById("navAbout").addEventListener("click", e => { e.preventDefault(); goto("about"); });
+document.getElementById("home").addEventListener("click", () => goto("reel"));
 
 /* photo: title bar drag + throw */
 photoEl.querySelector(".titlebar").addEventListener("pointerdown", e => {
